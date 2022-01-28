@@ -1,0 +1,23 @@
+---
+title: "Descriptives"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load data
+```{r}
+struc_include<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
+  filter(!collection_title=="collection_title")
+
+sum(struc_include$imgincl_t1w_include)
+sum(struc_include$imgincl_t2w_include)
+```
+
+Data cleaning
+```{r}
+
+
+```
