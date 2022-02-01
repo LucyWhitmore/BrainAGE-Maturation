@@ -5,19 +5,69 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+packages <-  c("tidyverse",
+               "reshape2",
+               "nlme", "lme4",
+               "data.table", "psych",
+               "parallel","lubridate",
+               "ggpubr", "broom", 
+               "apaTables", "MetBrewer")
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+lapply(packages, library, character.only = TRUE)
 ```
 
 Load data
 ```{r}
 struc_include<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
-  filter(!collection_title=="collection_title")
+  filter(!collection_title=="collection_title") %>% 
+  select(1:12) %>% 
+  mutate(interview_age = as.numeric(interview_age),
+        imgincl_t1w_include = as.numeric(imgincl_t1w_include),
+        imgincl_t2w_include = as.numeric(imgincl_t2w_include))
 
-sum(struc_include$imgincl_t1w_include)
-sum(struc_include$imgincl_t2w_include)
+struc_include_baseline <- struc_include %>% 
+  filter(eventname == "baseline_year_1_arm_1")
+
+struc_include_followup <- struc_include %>% 
+  filter(eventname == "2_year_follow_up_y_arm_1")
+
 ```
 
-Data cleaning
+Basic descriptives
 ```{r}
+t1_baseline = sum(struc_include_baseline$imgincl_t1w_include)
+t2_baseline = sum(struc_include_baseline$imgincl_t2w_include)
 
+t1_followup = sum(struc_include_followup$imgincl_t1w_include)
+t2_followup = sum(struc_include_followup$imgincl_t2w_include)
+
+t1_baseline_age_mean = mean(struc_include_baseline$interview_age[struc_include_baseline$imgincl_t1w_include==1], na.rm=T)
+t2_baseline_age_mean = mean(struc_include_baseline$interview_age[struc_include_baseline$imgincl_t2w_include==1], na.rm=T)
+t1_baseline_age_sd = sd(struc_include_baseline$interview_age[struc_include_baseline$imgincl_t1w_include==1], na.rm=T)
+
+
+t1_followup_age_mean = mean(struc_include_followup$interview_age[struc_include_followup$imgincl_t1w_include==1], na.rm=T)
+t2_followup_age_mean = mean(struc_include_followup$interview_age[struc_include_followup$imgincl_t2w_include==1], na.rm=T)
+t1_followup_age_sd = sd(struc_include_followup$interview_age[struc_include_followup$imgincl_t1w_include==1], na.rm=T)
+
+```
+
+Descriptive plots
+```{r}
+ggplot(struc_include_baseline %>% filter(imgincl_t1w_include==1), aes(x=interview_age)) + 
+  geom_histogram(binwidth=1, fill=met.brewer("Hokusai2", 1), color=met.brewer("Hokusai3", 1)) +
+  theme_classic() +
+  labs(x="Age (Months)", title = "Baseline Age Distribution")
+ggsave("BaselineAgeDist.png")
+
+
+ggplot(struc_include_followup %>% filter(imgincl_t1w_include==1), aes(x=interview_age)) + 
+  geom_histogram(binwidth=1, fill=met.brewer("Hokusai2", 1), color=met.brewer("Hokusai3", 1)) +
+  theme_classic() +
+  labs(x="Age (Months)", title = "2yr Follow-up Age Distribution")
+ggsave("2YrFollowupAgeDist.png")
 
 ```
