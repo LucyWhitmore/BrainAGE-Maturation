@@ -1,0 +1,103 @@
+---
+title: "Existing Model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Install XGboost & tidymodels
+packageUrl <- "https://cran.r-project.org/src/contrib/Archive/xgboost/xgboost_1.0.0.2.tar.gz"
+# You then install this version of the package using
+install.packages(packageUrl, repos = NULL, type = 'source')
+
+install.packages("tidymodels")
+
+
+library(here) # OS agnostic relative paths (relative to project dir)
+library(tidyverse) # data wrangling tools and pipes
+library(tidymodels) # machine learning metaverse
+library(xgboost) # main engine, needs version 1.0.0.2, see above
+
+```
+
+Load Data
+```{r}
+
+#load("smri_1.rds")
+
+xgb_mod <- readRDS(
+  file = here::here(
+    "xgboost_9to19_brain_age_mod.rds"))
+```
+
+Predict Brain Age
+```{r}
+brain_age_df <-
+  xgb_mod %>%
+  predict(new_data = renamed_smri) %>%
+  mutate(
+    # provide the chronological age at time of scan
+    truth = renamed_smri$interview_age
+  ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+```
+
+
+Evaluate accuracy
+```{r}
+# compute common performance metrics: mae, rsq, rmse
+brain_age_df %>%
+  metrics(truth = truth, estimate = .pred)
+```
+
+Optional bias correction
+```{r}
+# bias prediction method, steps in comments,
+# previously determined values hardcoded.
+# xgb_bias_mod <- lm(.pred ~ truth, data = xgb_validate)
+
+# extract intercept and slope
+bias_intercept <- 6.41 # xgb_bias_mod$coefficients[["(Intercept)"]]
+bias_slope <-  0.55 # xgb_bias_mod$coefficients[["truth"]]
+
+# create bias correct data frame
+brain_age_corrected_df <- brain_age_df %>%
+  mutate(
+    # corrected brain age prediction
+    corrected_pred =  (.pred - bias_intercept) / bias_slope
+  ) %>%
+  # corrected corrected brain age gap
+  mutate(corrected_gap = corrected_pred - truth)
+
+
+#mine
+brain_age_corrected_df %>%
+  metrics(truth = truth, estimate = corrected_pred)
+
+```
+
+
+plotting
+```{r}
+brain_age_actual_df <- as.data.frame(brain_age_df)
+
+
+ggplot(brain_age_actual_df, aes(x=truth, y=.pred)) +
+  geom_point()
+
+ggplot(brain_age_actual_df, aes(x=.pred)) +
+  geom_histogram()
+
+ggplot(brain_age_actual_df, aes(x=truth)) +
+  geom_histogram()
+
+
+ggplot(as.data.frame(brain_age_corrected_df), aes(x=truth, y=.pred)) +
+  geom_point()
+
+
+ggplot(as.data.frame(brain_age_corrected_df), aes(x=corrected_pred)) +
+  geom_histogram()
+```
