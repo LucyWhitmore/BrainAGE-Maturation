@@ -1,0 +1,94 @@
+---
+title: "DataSetup"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+packages <-  c("tidyverse",
+               "reshape2",
+               "nlme", "lme4",
+               "data.table", "psych",
+               "parallel","lubridate",
+               "ggpubr", "broom", 
+               "apaTables", "MetBrewer")
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+lapply(packages, library, character.only = TRUE)
+```
+
+
+Load Structural Data
+```{r}
+#Load list of included subjects
+struc_include<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(1:12) %>% 
+  mutate(interview_age = as.numeric(interview_age),
+        imgincl_t1w_include = as.numeric(imgincl_t1w_include),
+        imgincl_t2w_include = as.numeric(imgincl_t2w_include)) %>% 
+  filter(imgincl_t1w_include == 1)
+
+#Load structural data
+#Filter for volume & area measurements
+smri_1 <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip10201.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  filter(src_subject_id%in%struc_include$src_subject_id) %>% 
+  select(matches("vol|area"))
+  
+#T1 intensity, might not need
+smri_2 <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip20201.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  filter(src_subject_id%in%struc_include$src_subject_id)
+
+#Rename data to fit naming conventions
+#????
+
+```
+
+Load Other Data
+```{r}
+#Puberty
+youth_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ypdms01.txt") %>%
+  filter(!collection_title=="collection_title")
+
+youth_pub_sum <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ssphy01.txt") %>%
+  filter(!collection_title=="collection_title")
+
+parent_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ppdms01.txt") %>%
+  filter(!collection_title=="collection_title")
+
+parent_pub_sum <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ssphp01.txt") %>%
+  filter(!collection_title=="collection_title")
+  
+saliva <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_hsss01.txt") %>%
+  filter(!collection_title=="collection_title")
+  
+#Cognition
+cognition <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_tbss01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(subjectkey, src_subject_id, interview_age, sex, eventname, nihtbx_fluidcomp_fc, nihtbx_cryst_fc, nihtbx_totalcomp_fc)
+
+#Height/weight metrics
+physical <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ant01.txt") %>%
+  filter(!collection_title=="collection_title")  %>% 
+  select(subjectkey, src_subject_id, interview_age, sex, eventname, anthroheightcalc, anthroweightcalc)
+
+#Sexual attraction and behavior
+gish <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_gish2y01.txt") %>%
+  filter(!collection_title=="collection_title") 
+
+#Grade level, parent report
+grade <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_gish2y01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(subjectkey, src_subject_id, interview_date, interview_age, sex, eventname, demo_ed_v2)
+```
+
+
+```{r}
+
+
+```
+
