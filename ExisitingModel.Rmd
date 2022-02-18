@@ -42,6 +42,16 @@ brain_age_df <-
   ) %>%
   # compute the brain age gap by subtracting chronological age from prediction
   mutate(gap = .pred - truth)
+
+brain_age_df_followup <-
+  xgb_mod %>%
+  predict(new_data = renamed_smri_followup) %>%
+  mutate(
+    # provide the chronological age at time of scan
+    truth = renamed_smri_followup$interview_age
+  ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
 ```
 
 
@@ -49,6 +59,9 @@ Evaluate accuracy
 ```{r}
 # compute common performance metrics: mae, rsq, rmse
 brain_age_df %>%
+  metrics(truth = truth, estimate = .pred)
+
+brain_age_df_followup %>%
   metrics(truth = truth, estimate = .pred)
 ```
 
@@ -71,10 +84,28 @@ brain_age_corrected_df <- brain_age_df %>%
   # corrected corrected brain age gap
   mutate(corrected_gap = corrected_pred - truth)
 
+brain_age_corrected_df_followup <- brain_age_df_followup %>%
+  mutate(
+    # corrected brain age prediction
+    corrected_pred =  (.pred - bias_intercept) / bias_slope
+  ) %>%
+  # corrected corrected brain age gap
+  mutate(corrected_gap = corrected_pred - truth)
+
 
 #mine
 brain_age_corrected_df %>%
   metrics(truth = truth, estimate = corrected_pred)
+
+brain_age_corrected_df_followup %>%
+  metrics(truth = truth, estimate = corrected_pred)
+
+
+save(brain_age_df, file="BaselineBrainAge.Rda")
+save(brain_age_corrected_df, file="BaselineBrainAgeCorrected.Rda")
+
+save(brain_age_df_followup, file="FollowUpBrainAge.Rda")
+save(brain_age_corrected_df_followup, file="FollowUpBrainAgeCorrected.Rda")
 
 ```
 
@@ -93,11 +124,17 @@ ggplot(brain_age_actual_df, aes(x=.pred)) +
 ggplot(brain_age_actual_df, aes(x=truth)) +
   geom_histogram()
 
+ggplot(brain_age_df_followup, aes(x=.pred)) +
+  geom_histogram()
+
 
 ggplot(as.data.frame(brain_age_corrected_df), aes(x=truth, y=.pred)) +
   geom_point()
 
 
 ggplot(as.data.frame(brain_age_corrected_df), aes(x=corrected_pred)) +
+  geom_histogram()
+
+ggplot(as.data.frame(brain_age_corrected_df_followup), aes(x=corrected_pred)) +
   geom_histogram()
 ```

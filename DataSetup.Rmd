@@ -40,6 +40,9 @@ smri_1 <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip10201.t
 
 smri_baseline <- smri_1%>% 
   filter(eventname=="baseline_year_1_arm_1")
+
+smri_followup <- smri_1%>% 
+  filter(eventname=="2_year_follow_up_y_arm_1")
   
 #T1 intensity, might not need
 smri_2 <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip20201.txt") %>%
@@ -286,27 +289,27 @@ FS_R_Insula_GrayVol = smri_vol_cdk_insularh
 
 
 #Create empty columns to match feature list
-renamed_smri[,"FS_BrainSeg_Vol"] <- NA
-renamed_smri[,"FS_BrainSeg_Vol_No_Vent"] <- NA
-renamed_smri[,"FS_BrainSeg_Vol_No_Vent_Surf"] <- NA
-renamed_smri[,"FS_SupraTentorial_Vol_No_Vent"] <- NA
-renamed_smri[,"FS_SupraTentorial_No_Vent_Voxel_Count"] <- NA
-renamed_smri[,"FS_Mask_Vol"] <- NA
-renamed_smri[,"FS_BrainSegVol_eTIV_Ratio"] <- NA
-renamed_smri[,"FS_MaskVol_eTIV_Ratio"] <- NA
-renamed_smri[,"FS_L_Vessel_Vol"] <- NA
-renamed_smri[,"FS_L_ChoroidPlexus_Vol"] <- NA
-renamed_smri[,"FS_R_Vessel_Vol"] <- NA
-renamed_smri[,"FS_R_ChoroidPlexus_Vol"] <- NA
-renamed_smri[,"FS_OpticChiasm_Vol"] <- NA
-renamed_smri[,"FS_Total_GM_Vol"] <- NA
+renamed_smri_followup[,"FS_BrainSeg_Vol"] <- NA
+renamed_smri_followup[,"FS_BrainSeg_Vol_No_Vent"] <- NA
+renamed_smri_followup[,"FS_BrainSeg_Vol_No_Vent_Surf"] <- NA
+renamed_smri_followup[,"FS_SupraTentorial_Vol_No_Vent"] <- NA
+renamed_smri_followup[,"FS_SupraTentorial_No_Vent_Voxel_Count"] <- NA
+renamed_smri_followup[,"FS_Mask_Vol"] <- NA
+renamed_smri_followup[,"FS_BrainSegVol_eTIV_Ratio"] <- NA
+renamed_smri_followup[,"FS_MaskVol_eTIV_Ratio"] <- NA
+renamed_smri_followup[,"FS_L_Vessel_Vol"] <- NA
+renamed_smri_followup[,"FS_L_ChoroidPlexus_Vol"] <- NA
+renamed_smri_followup[,"FS_R_Vessel_Vol"] <- NA
+renamed_smri_followup[,"FS_R_ChoroidPlexus_Vol"] <- NA
+renamed_smri_followup[,"FS_OpticChiasm_Vol"] <- NA
+renamed_smri_followup[,"FS_Total_GM_Vol"] <- NA
 
 #renamed_smri <- subset(renamed_smri, select = -c(269,279))
 
 
 #Convert to numeric
-renamed_smri[,6:279] <- sapply(renamed_smri[,6:279],as.numeric)
-renamed_smri <- renamed_smri %>% 
+renamed_smri_followup[,6:279] <- sapply(renamed_smri_followup[,6:279],as.numeric)
+renamed_smri_followup <- renamed_smri_followup %>% 
   mutate(interview_age = as.numeric(interview_age)/12)
 
 
