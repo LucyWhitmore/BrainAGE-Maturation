@@ -71,6 +71,9 @@ parent_pub_sum <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ssph
   
 saliva <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_hsss01.txt") %>%
   filter(!collection_title=="collection_title")
+
+#parent sum scores abcd_mhp01
+#youth sum scores abcd_mhy01
   
 #Cognition
 cognition <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_tbss01.txt") %>%
