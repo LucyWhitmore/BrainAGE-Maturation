@@ -12,7 +12,7 @@ packages <-  c("tidyverse",
                "data.table", "psych",
                "parallel","lubridate",
                "ggpubr", "broom", 
-               "apaTables", "MetBrewer", "beepr", "doParallel", "tictoc")
+               "apaTables", "MetBrewer", "beepr", "doParallel", "tictoc", "rsample", "tidymodels")
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages())))  
 }
@@ -51,7 +51,7 @@ df_train_baseline %>%
 # define (what we want to do)
 preprocess_recipe_baseline <- df_train_baseline %>%
   # predict scan age by all brain features
-  recipe(scan_age ~ .) %>%
+  recipe(interview_age ~ .) %>%
   # remove near zero variance predictors
   step_nzv(all_predictors()) %>%
   prep() # where it all gets calculated
@@ -70,7 +70,7 @@ df_train_prep_baseline <- juice(preprocess_recipe_baseline)
 df_validation_prep_baseline <- preprocess_recipe_baseline %>% bake(df_validation_baseline)
 
 # pre process on all of forbow
-frb_prep <- preprocess_recipe_baseline %>% bake(frb_select)
+#frb_prep <- preprocess_recipe_baseline %>% bake(frb_select)
 
 
 # Cross-validation --------------------------------------------------------
@@ -80,7 +80,7 @@ set.seed(42)
 train_cv_baseline <- df_train_prep_baseline %>%
   vfold_cv(
     v = 10, 
-    repeats = 10, 
+    repeats = 10, #10
     strata = interview_age
   )
 
@@ -134,7 +134,7 @@ set.seed(42)
 xgb_tuned_results <- tune_grid(
   boost_mod,
   interview_age ~ .,
-  resamples = train_cv,
+  resamples = train_cv_baseline,
   grid = xgboost_grid,
   metrics = metric_set(mae, rmse, rsq),
   control = control_grid(verbose = FALSE,
@@ -167,6 +167,5 @@ xgb_final_mod <- boost_mod %>%
 saveRDS(xgb_final_mod, file = here::here(
   "model", "xgboost_abcd_brain_age_mod.rds")
   )
-
 
 ```
