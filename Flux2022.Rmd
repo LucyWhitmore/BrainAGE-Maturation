@@ -1,0 +1,227 @@
+---
+title: "Flux2022"
+author: "Lucy Whitmore"
+date: "3/17/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(psych )
+```
+
+## Load Data
+```{r, include=FALSE}
+struc_include<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(1:12) %>% 
+  mutate(interview_age = as.numeric(interview_age),
+        imgincl_t1w_include = as.numeric(imgincl_t1w_include),
+        imgincl_t2w_include = as.numeric(imgincl_t2w_include)) %>% 
+  filter(imgincl_t1w_include == 1)
+
+#Load structural data
+#Filter for volume & area measurements
+smri_1 <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip10201.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  filter(src_subject_id%in%struc_include$src_subject_id) %>% 
+  select(subjectkey, src_subject_id, interview_age, sex, eventname, matches("vol|area")) 
+
+smri_baseline <- smri_1%>% 
+  filter(eventname=="baseline_year_1_arm_1")
+
+```
+
+```{r}
+#Puberty
+#Raw scores, youth
+youth_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ypdms01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  filter(eventname == "baseline_year_1_arm_1") %>% 
+  select(5:38) %>% 
+  select(-c(interview_date, pds_remote___1, pds_remote___2, pds_remote___3, pds_remote___4, pds_device)) %>% 
+  mutate_at(c(5:28), as.numeric)
+
+#Raw scores, parent
+parent_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ppdms01.txt") %>%
+  filter(!collection_title=="collection_title")  %>% 
+  filter(eventname== "baseline_year_1_arm_1") %>% 
+  select(5:27) %>% 
+  select(-c(interview_date, pds_select_language___1)) %>% 
+  mutate_at(c(5:21), as.numeric)
+
+#Cognition Scores (Age-Corrected)
+cognition <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_tbss01.txt") %>%
+  filter(!collection_title=="collection_title")  %>% 
+  filter(eventname == "baseline_year_1_arm_1") %>% 
+  select(src_subject_id,interview_age, nihtbx_fluidcomp_agecorrected, nihtbx_cryst_agecorrected, nihtbx_totalcomp_agecorrected) %>% 
+  mutate_at(c(2:5), as.numeric)
+
+	
+#Existing Models
+corrected_baseline_brainage <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/BaselineBrainAgeCorrected.Rda")
+```
+
+```{r, eval=F}
+#future data import (if we find data)
+
+#Sum scores (categorical)
+youth_pub_sum <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ssphy01.txt") %>%
+  filter(!collection_title=="collection_title")
+
+parent_pub_sum <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ssphp01.txt") %>%
+  filter(!collection_title=="collection_title")
+
+#Mean Scores & maybe all scores??
+youth_pub_sum <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_mhy01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(src_subject_id, interview_age, sex, eventname,
+         pds_y_ss_male_sum, pds_y_ss_male_sum_nm, pds_y_ss_male_mean, 
+         pds_y_ss_male_mean_nm, pds_y_ss_male_category, pds_y_ss_male_cat_nm, 
+         pds_y_ss_female_sum, pds_y_ss_female_sum_nm, pds_y_ss_female_mean, 
+         pds_y_ss_female_mean_nm, pds_y_ss_female_category, pds_y_ss_female_cat_nm)
+
+parent_pub_sum <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_mhp01.txt") %>%
+  filter(!collection_title=="collection_title")
+
+```
+
+## Format BrainAge
+```{r}
+corrected_baseline_brainage$src_subject_id <- smri_baseline$src_subject_id
+```
+## Format Puberty Data 
+```{r}
+#two or more missing values = exclude
+#PDS mean score is a continuous value calculated by averaging across PDS items following Herting et al. (2021). Items on the PDS were considered missing if participants answered, “I don’t know” or “refuse to answer”, if the response was left blank, or if the response value was outside of the expected range (1 to 4). Participants with two or more missing answers were excluded from the PDS score calculation (following recommendations from (Herting et al., 2021)
+
+youth_pds[youth_pds == 777] <- NA
+youth_pds[youth_pds == 999] <- NA
+
+#Youth-report, removes everyone w/o complete data
+youth_pds <- youth_pds %>% 
+  mutate(youth_sum = case_when(pds_sex_y == "1" ~ #male
+                           (pds_ht2_y + pds_bdyhair_y + pds_skin2_y + pds_m4_y + pds_m5_y),  
+                         pds_sex_y == "2" ~ #female
+                           (pds_ht2_y + pds_bdyhair_y + pds_skin2_y + pds_f4_2_y + pds_f5_y))) %>% 
+  mutate(youth_mean = youth_sum/5) 
+
+youth_pds_use <- youth_pds %>% 
+  select(src_subject_id, pds_sex_y, youth_sum, youth_mean)
+
+#Parent-report, removes everyone w/o complete data
+parent_pds[parent_pds == 777] <- NA
+parent_pds[parent_pds == 999] <- NA
+parent_pds <- parent_pds %>% 
+    mutate(parent_sum = case_when(sex == "M" ~ #male
+                           (pds_1_p + pds_2_p + pds_3_p + pds_m4_p + pds_m5_p),  
+                         sex == "F" ~ #female
+                           (pds_1_p + pds_2_p + pds_3_p + pds_f4_p + pds_f5b_p))) %>% 
+  mutate(parent_mean = parent_sum/5)
+
+parent_pds_use <- parent_pds %>% 
+  select(src_subject_id, sex, parent_sum, parent_mean)
+```
+
+## Make big dataframe
+```{r}
+#Combine dataframes
+brainage_pds <- corrected_baseline_brainage[, c(6,1:5)] %>% 
+  left_join(youth_pds_use) %>% 
+  left_join(parent_pds_use) %>% 
+  left_join(cognition)
+
+#Split sample
+smp_size <- floor(0.5 * nrow(brainage_pds))
+
+## set the seed to make your partition reproducible
+set.seed(123)
+sample_ind <- sample(seq_len(nrow(brainage_pds)), size = smp_size)
+
+sample_1 <- brainage_pds[sample_ind, ]
+sample_2 <- brainage_pds[-sample_ind, ]
+```
+
+## Plot Descriptives
+```{r}
+ggplot(brainage_pds, aes(x=interview_age)) + 
+  geom_histogram()
+
+ggplot(brainage_pds, aes(x=corrected_gap)) + 
+  geom_histogram()
+
+ggplot(brainage_pds, aes(x=youth_mean)) + 
+  geom_histogram()
+
+ggplot(brainage_pds, aes(x=parent_mean)) + 
+  geom_histogram()
+
+ggplot(brainage_pds, aes(x=nihtbx_totalcomp_agecorrected)) + 
+  geom_histogram()
+
+
+```
+
+
+## Split Sample Descriptives
+```{r}
+#Sample 1 Descriptives
+describe(sample_1)
+
+#Sample 2 Descriptives
+describe(sample_2)
+
+```
+
+## Run Models
+```{r}
+# brainage ~ youth sum
+baseline_puberty_y_sum_1 <- lm(corrected_gap ~ youth_sum, data = sample_1)
+baseline_puberty_y_sum_2 <- lm(corrected_gap ~ youth_sum, data = sample_2)
+
+# brainage ~ youth mean
+baseline_puberty_y_mean_1 <- lm(corrected_gap ~ youth_mean, data = sample_1)
+baseline_puberty_y_mean_2 <- lm(corrected_gap ~ youth_mean, data = sample_2)
+
+# brainage ~ parent sum
+baseline_puberty_p_sum_1 <- lm(corrected_gap ~ parent_sum, data = sample_1)
+baseline_puberty_p_sum_2 <- lm(corrected_gap ~ parent_sum, data = sample_2)
+
+# brainage ~ parent mean
+baseline_puberty_p_mean_1 <- lm(corrected_gap ~ parent_mean, data = sample_1)
+baseline_puberty_p_mean_2 <- lm(corrected_gap ~ parent_mean, data = sample_2)
+
+baseline_puberty_p_mean_flipped_1 <- lm(parent_mean ~ corrected_gap, data = sample_1)
+baseline_puberty_p_mean_flipped_2 <- lm(parent_mean ~ corrected_gap, data = sample_2)
+
+#Cognition
+baseline_cognition_1 <- lm(corrected_gap ~ nihtbx_totalcomp_agecorrected, data=sample_1)
+baseline_cognition_2 <- lm(corrected_gap ~ nihtbx_totalcomp_agecorrected, data=sample_2)
+
+```
+
+## Model Summaries
+```{r}
+#summary(baseline_puberty_y_sum_1)
+
+summary(baseline_puberty_y_mean_1)
+summary(baseline_puberty_y_mean_2)
+
+
+#summary(baseline_puberty_p_sum)
+
+summary(baseline_puberty_p_mean_1)
+summary(baseline_puberty_p_mean_2)
+
+summary(baseline_puberty_p_mean_flipped_1)
+summary(baseline_puberty_p_mean_flipped_2)
+
+summary(baseline_cognition_1)
+summary(baseline_cognition_2)
+```
+
+
+
+
