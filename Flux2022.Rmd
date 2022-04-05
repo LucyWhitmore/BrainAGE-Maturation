@@ -9,7 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
-library(psych )
+library(psych)
+library(sjPlot)
 ```
 
 ## Load Data
@@ -200,6 +201,13 @@ baseline_puberty_p_mean_flipped_2 <- lm(parent_mean ~ corrected_gap, data = samp
 baseline_cognition_1 <- lm(corrected_gap ~ nihtbx_totalcomp_agecorrected, data=sample_1)
 baseline_cognition_2 <- lm(corrected_gap ~ nihtbx_totalcomp_agecorrected, data=sample_2)
 
+#Cognition fluid
+baseline_cognition_fluid_1 <- lm(corrected_gap ~ nihtbx_fluidcomp_agecorrected, data=sample_1)
+baseline_cognition_fluid_2 <- lm(corrected_gap ~ nihtbx_fluidcomp_agecorrected, data=sample_2)
+
+#Cognition crystallized
+baseline_cognition_crystal_1 <- lm(corrected_gap ~ nihtbx_cryst_agecorrected, data=sample_1)
+baseline_cognition_crystal_2 <- lm(corrected_gap ~ nihtbx_cryst_agecorrected, data=sample_2)
 ```
 
 ## Model Summaries
@@ -220,7 +228,30 @@ summary(baseline_puberty_p_mean_flipped_2)
 
 summary(baseline_cognition_1)
 summary(baseline_cognition_2)
+
+summary(baseline_cognition_fluid_1)
+summary(baseline_cognition_fluid_2)
+
+summary(baseline_cognition_crystal_1)
+summary(baseline_cognition_crystal_2)
+
 ```
+
+Model Figures
+```{r}
+plot_model(baseline_puberty_y_mean_1, type="pred", terms = "youth_mean")
+
+plot_model(baseline_puberty_p_mean_1, type="pred", terms = "parent_mean")
+
+plot_model(baseline_cognition_1, type="pred", terms = "nihtbx_totalcomp_agecorrected")
+plot_model(baseline_cognition_2, type="pred", terms = "nihtbx_totalcomp_agecorrected")
+
+
+
+
+```
+
+
 
 
 
