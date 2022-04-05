@@ -28,7 +28,7 @@ Load Data
 
 xgb_mod <- readRDS(
   file = here::here(
-    "xgboost_9to19_brain_age_mod.rds"))
+    "DevelopmentalBrainAge/model/xgboost_9to19_brain_age_mod.rds"))
 ```
 
 Predict Brain Age
