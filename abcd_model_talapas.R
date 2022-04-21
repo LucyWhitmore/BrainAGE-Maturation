@@ -1,61 +1,14 @@
----
-title: "ABCD Model"
-output: html_document
----
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(parallel)
+library(doParallel)
+library(tidymodels)
 
-packages <-  c("tidyverse",
-               "reshape2",
-               "nlme", "lme4",
-               "data.table", "psych",
-               "parallel","lubridate",
-               "ggpubr", "broom", 
-               "apaTables", "MetBrewer", "beepr", "doParallel", "tictoc", "rsample", "tidymodels")
-if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
-  install.packages(setdiff(packages, rownames(installed.packages())))  
-}
-lapply(packages, library, character.only = TRUE)
-```
+#load data
+load("/projects/dcnlab/shared/brainage/df_train_baseline.Rds")
+load("/projects/dcnlab/shared/brainage/df_validation_baseline.Rds")
 
 
-Model Prep (Baseline)
-```{r, eval=F}
-# Model prep: split, preprocessing, CV ------------------------------------
-
-# Train / test split ------------------------------------------------------
-
-set.seed(42)
-df_split_baseline <- initial_split(
-  smri_1,
-  prop = 0.80,
-  # matching age distributions across train and test set
-  strata = "interview_age"
-)
-
-df_train_baseline <- training(df_split_baseline)
-df_validation_baseline <- testing(df_split_baseline)
-```
-
-
-Data Import/Set-Up
-```{r}
-load("Sample_1.Rds")
-load("Sample_2.Rds")
-load("renamed_smri_baseline.Rda")
-
-
-df_train_baseline <- filter(renamed_smri_baseline, src_subject_id %in% sample_1$src_subject_id)
-df_validation_baseline <- filter(renamed_smri_baseline, src_subject_id %in% sample_2$src_subject_id)
-
-save(df_train_baseline, file="df_train_baseline.Rds")
-save(df_validation_baseline, file="df_validation_baseline.Rds")
-
-```
-
-
-```{r}
 # report n training, features, testing
 df_train_baseline %>%
   summarise(
@@ -88,9 +41,6 @@ df_train_prep_baseline <- juice(preprocess_recipe_baseline)
 # apply on validation
 df_validation_prep_baseline <- preprocess_recipe_baseline %>% bake(df_validation_baseline)
 
-# pre process on all of forbow
-#frb_prep <- preprocess_recipe_baseline %>% bake(frb_select)
-
 
 # Cross-validation --------------------------------------------------------
 
@@ -103,15 +53,12 @@ train_cv_baseline <- df_train_prep_baseline %>%
     strata = interview_age
   )
 
-```
 
+#Train and Fit Model (Baseline)
 
-Train and Fit Model (Baseline)
-```{r}
 # Extreme gradient boosting
 # Parallel processing -----------------------------------------------------
 
-library(doParallel)
 all_cores <- parallel::detectCores(logical = TRUE)
 # for 8 core 16 thread machine, good performance running more than 
 # physical but less than all logical
@@ -127,7 +74,7 @@ boost_mod <- boost_tree(
   sample_size = tune(), mtry = tune(), 
   # step size
   learn_rate = tune()
-  ) %>%
+) %>%
   set_engine("xgboost", 
              objective = "reg:squarederror")
 
@@ -179,12 +126,9 @@ best_xgb_params <- xgb_tuned_results %>%
 xgb_final_mod <- boost_mod %>%
   finalize_model(best_xgb_params) %>%
   fit(interview_age ~ .,
-      data = df_train_prep)
+      data = df_train_prep_baseline)
 
 
 # save mod
-saveRDS(xgb_final_mod, file = here::here(
-  "model", "xgboost_abcd_brain_age_mod.rds")
-  )
-
-```
+saveRDS(xgb_final_mod, file = here::here("xgboost_abcd_brain_age_mod.rds")
+)

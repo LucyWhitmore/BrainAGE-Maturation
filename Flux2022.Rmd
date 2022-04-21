@@ -143,6 +143,15 @@ sample_ind <- sample(seq_len(nrow(brainage_pds)), size = smp_size)
 
 sample_1 <- brainage_pds[sample_ind, ]
 sample_2 <- brainage_pds[-sample_ind, ]
+
+#t test for age differences
+t.test(sample_1$interview_age, sample_2$interview_age)
+
+#Save samples
+
+save(sample_1, file="Sample1.Rda")
+save(sample_2, file = "Sample2.Rda")
+
 ```
 
 ## Plot Descriptives
@@ -239,11 +248,16 @@ summary(baseline_cognition_crystal_2)
 
 Model Figures
 ```{r}
-plot_model(baseline_puberty_y_mean_1, type="pred", terms = "youth_mean")
+plot_model(baseline_puberty_y_mean_1, type="pred", terms = "youth_mean", colors = "#67322e", title = "Predicted Gap") +
+  theme_sjplot()
 
-plot_model(baseline_puberty_p_mean_1, type="pred", terms = "parent_mean")
+plot_model(baseline_puberty_p_mean_1, type="pred", terms = "parent_mean", title = "Predicted Gap") +
+  theme_sjplot()
 
-plot_model(baseline_cognition_1, type="pred", terms = "nihtbx_totalcomp_agecorrected")
+
+plot_model(baseline_cognition_1, type="pred", terms = "nihtbx_totalcomp_agecorrected", title = "Predicted Gap")+
+  theme_sjplot()
+
 plot_model(baseline_cognition_2, type="pred", terms = "nihtbx_totalcomp_agecorrected")
 
 
