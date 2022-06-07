@@ -1,0 +1,583 @@
+---
+title: "Paper Analyses"
+author: "Lucy Whitmore"
+date: "5/4/2022"
+output: html_document
+---
+
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+
+packages <-  c("tidyverse",
+               "ggpubr", 
+               "apaTables", "MetBrewer",
+               "ggseg", "vip", "tidymodels")
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+lapply(packages, library, character.only = TRUE)
+```
+Load Data
+```{r}
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/BrainagePDSBaseline.Rda")
+
+#abcd_brainage_baseline <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/ABCDBaselineBrainAgeCorrected.Rda")
+
+abcd_brainage_baseline <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/BaselineBrainAgeCorrected.Rda")
+
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/Sample1FollowUp.Rda")
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/Sample2FollowUp.Rda")
+
+#load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/abcd_baseline.Rda")
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/ABCDBaselineBrainAgeCorrected.Rda")
+
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/Sample1Baseline.Rda")
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/Sample2Baseline.Rda")
+
+```
+
+# Vlad's Model, Baseline Analyses
+
+#Run Models
+```{r}
+# brainage ~ youth sum
+#baseline_puberty_y_sum_1 <- lm(corrected_gap ~ youth_sum, data = sample_1)
+#baseline_puberty_y_sum_2 <- lm(corrected_gap ~ youth_sum, data = sample_2)
+
+sample_1_baseline_months <- sample_1_baseline %>% 
+  mutate(interview_age_m = interview_age/12)
+
+sample_2_baseline_months <- sample_2_baseline %>% 
+  mutate(interview_age_m = interview_age/12)
+
+# brainage ~ youth mean
+baseline_puberty_y_mean_1 <- lm(corrected_gap ~ youth_mean + interview_age, data = sample_1_baseline)
+baseline_puberty_y_mean_2 <- lm(corrected_gap ~ youth_mean + interview_age, data = sample_2_baseline)
+
+baseline_puberty_y_mean_1_m <- lm(corrected_gap ~ youth_mean + interview_age_m, data = sample_1_baseline_months)
+baseline_puberty_y_mean_2_m <- lm(corrected_gap ~ youth_mean + interview_age_m, data = sample_2_baseline_months)
+
+
+
+# brainage ~ parent sum
+#baseline_puberty_p_sum_1 <- lm(corrected_gap ~ parent_sum, data = sample_1)
+#baseline_puberty_p_sum_2 <- lm(corrected_gap ~ parent_sum, data = sample_2)
+
+# brainage ~ parent mean
+baseline_puberty_p_mean_1 <- lm(corrected_gap ~ parent_mean, data = sample_1_baseline)
+baseline_puberty_p_mean_2 <- lm(corrected_gap ~ parent_mean, data = sample_2_baseline)
+
+baseline_puberty_p_mean_1_m <- lm(corrected_gap ~ parent_mean + interview_age_m, data = sample_1_baseline_months)
+baseline_puberty_p_mean_2_m <- lm(corrected_gap ~ parent_mean + interview_age_m, data = sample_2_baseline_months)
+
+
+#Cognition
+baseline_cognition_1 <- lm(corrected_gap ~ nihtbx_totalcomp_agecorrected, data=sample_1_baseline)
+baseline_cognition_2 <- lm(corrected_gap ~ nihtbx_totalcomp_agecorrected, data=sample_2_baseline)
+
+
+baseline_cognition_1_m <- lm(corrected_gap ~ nihtbx_totalcomp_agecorrected + interview_age_m, data=sample_1_baseline_months)
+baseline_cognition_2_m <- lm(corrected_gap ~ nihtbx_totalcomp_agecorrected + interview_age_m, data=sample_2_baseline_months)
+#Cognition fluid
+#baseline_cognition_fluid_1 <- lm(corrected_gap ~ nihtbx_fluidcomp_agecorrected, data=sample_1)
+#baseline_cognition_fluid_2 <- lm(corrected_gap ~ nihtbx_fluidcomp_agecorrected, data=sample_2)
+
+#Cognition crystallized
+#baseline_cognition_crystal_1 <- lm(corrected_gap ~ nihtbx_cryst_agecorrected, data=sample_1)
+#baseline_cognition_crystal_2 <- lm(corrected_gap ~ nihtbx_cryst_agecorrected, data=sample_2)
+```
+
+
+## Model Summaries
+```{r}
+summary(baseline_puberty_y_mean_1)
+summary(baseline_puberty_y_mean_2)
+
+summary(baseline_puberty_p_mean_1)
+summary(baseline_puberty_p_mean_2)
+
+summary(baseline_cognition_1)
+summary(baseline_cognition_2)
+```
+Model Summaries of Models w/ age as covariate
+```{r}
+summary(baseline_puberty_y_mean_1_m)
+summary(baseline_puberty_y_mean_2_m)
+
+summary(baseline_puberty_p_mean_1_m)
+summary(baseline_puberty_p_mean_2_m)
+
+summary(baseline_cognition_1_m)
+summary(baseline_cognition__m2)
+
+```
+
+
+
+
+
+
+
+
+
+Figure 4A from vlad’s paper
+Make categorical variables for puberty/cognition just for visualization purposes
+Geom_density, fill will be different categories
+
+Density plots
+X axis brain age gap
+y axis density
+grouped/split/colored by categorical
+
+3 plots: youth-report puberty, parent-report puberty, cognition
+```{r}
+#Youth-Report Puberty
+#make categorical variable for puberty
+#age-corrected cognition: These are presented as Standard Scores (mean=100, SD=15).
+categorical_pds_baseline <-  brainage_pds_baseline %>% 
+  mutate(youth_pds_cat=cut(youth_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")),
+         parent_pds_cat=cut(parent_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")),
+         cognition_cat=cut(nihtbx_totalcomp_agecorrected, breaks=c(-Inf, 85, 115, Inf), labels=c(">-1", "-1-1", ">1")))
+
+#don't z-score, include more than 1 standard deviation and less than 1 standard deviation (ignore within 1 SD)
+
+
+ggpar((categorical_pds_baseline %>% 
+  filter(!is.na(youth_pds_cat)) %>% 
+  ggdensity(x = "corrected_gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean")), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS") 
+
+#Parent-Report Puberty
+ggpar((categorical_pds_baseline %>% 
+  filter(!is.na(parent_pds_cat)) %>% 
+ggdensity(x = "corrected_gap", color= "parent_pds_cat", fill= "parent_pds_cat", add="mean")), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS") 
+
+#Cognition
+ggpar((categorical_pds_baseline %>% 
+  filter(!is.na(cognition_cat) & cognition_cat!="-1-1" ) %>% 
+  ggdensity(x = "corrected_gap", color= "cognition_cat", fill="cognition_cat", add="mean")), xlab="Brain Age Gap", ylab="Density", legend.title = "Age-Corrected Cognition")
+
+#Non-bias corrected version
+ggpar((categorical_pds_baseline %>% 
+  filter(!is.na(youth_pds_cat)) %>% 
+  ggdensity(x = "gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean")), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS") 
+
+#Parent-Report Puberty
+ggpar((categorical_pds_baseline %>% 
+  filter(!is.na(parent_pds_cat)) %>% 
+ggdensity(x = "gap", color= "parent_pds_cat", fill= "parent_pds_cat", add="mean")), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS") 
+
+#Cognition
+ggpar((categorical_pds_baseline %>% 
+  filter(!is.na(cognition_cat) & cognition_cat!="-1-1" ) %>% 
+  ggdensity(x = "gap", color= "cognition_cat", fill="cognition_cat", add="mean")), xlab="Brain Age Gap", ylab="Density", legend.title = "Age-Corrected Cognition")
+
+
+```
+
+ggseg ones with weightings for the model
+New model only 
+
+4 panels:
+cortical map and bar graph
+subcortical map and bar graph
+
+stacked bar plot with right hemisphere followed by left hemisphere where applicable.
+^note: how to decide top 10> top 10 by hemisphere and then add other hemisphere, or top 10 by bilateral calculation?
+
+vip package
+```{r}
+# Calculate variables of importance
+abcd_vi <- vi(abcd_model_5_9) #xgb_final_mod, xgboost_abcd_brain_age_mod
+abcd_vi
+
+
+vip(abcd_model_5_9, num_features = 20)  +
+  theme_light()
+
+#Subset so that we don't have to rename all?
+
+# Rename columns to fit with ggseg atlas (ugghhh)
+
+brain_regions(dk)
+brain_labels(dk)
+
+brain_labels(aseg)
+
+ggseg(abcd_vi)
+
+
+#Actually plot
+#Cortical
+abcd_vi %>%
+  ggplot() +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = Importance))
+#Subcortical
+abcd_vi %>%
+  ggplot() +
+  geom_brain(atlas = aseg, 
+             position = position_brain(hemi ~ side),
+             aes(fill = Importance))
+```
+
+Figure 2
+Use subsample, otherwise it’ll look super funky
+
+Scatterplot of scan age/chronological age vs predicted age
+2 panels: 1 for validation, 1 for analysis sample
+1 or 2 extra panels for analysis sample w/ Vlad's model
+```{r}
+#subsample data
+#sample_n()
+
+ggscatter(brainage_pds_baseline, x = "truth", y = "corrected_pred",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   xlab= "Scan/Chronological Age", ylab = "Predicted Age"
+   )
+
+
+ggscatter(brainage_pds_baseline, x = "truth", y = "gap",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regression line
+   add.params = list(color = "blue", fill = "lightgray")
+   )
+
+ggscatter(brainage_pds_baseline, x = "truth", y = "corrected_gap",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"),
+   xlab= "Scan/Chronological Age",
+   ylab = "Corrected Gap"
+   ) +
+  scale_y_continuous(breaks = c(-5, -2.5, 0, 2.5, 5), 
+                     labels = c(-5, -2.5, 0, 2.5, 5))
+
+```
+
+
+Checking Follow-up Brainage
+
+Load Data
+```{r}
+corrected_followup_brainage <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/FollowUpBrainAgeCorrected.Rda")
+
+#corrected_followup_brainage$src_subject_id <- smri_followup$src_subject_id
+
+```
+
+```{r}
+ggpar((corrected_baseline_brainage %>% 
+  #filter(!is.na(youth_pds_cat)) %>% 
+  ggdensity(x = "corrected_gap", add="mean")), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Baseline") 
+
+ggpar((corrected_followup_brainage %>% 
+  #filter(!is.na(youth_pds_cat)) %>% 
+  ggdensity(x = "corrected_gap", add="mean")), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Follow-Up") 
+
+
+
+ggscatter(corrected_followup_brainage, x = "truth", y = "corrected_pred",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+
+ggscatter(corrected_followup_brainage, x = "truth", y = "corrected_gap",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+
+ggscatter(corrected_followup_brainage, x = "truth", y = "gap",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+
+
+#Fit Metrics
+
+#baseline uncorrected
+corrected_baseline_brainage %>%
+  metrics(truth = truth, estimate = .pred)
+#baseline corrected
+corrected_baseline_brainage %>%
+  metrics(truth = truth, estimate = corrected_pred)
+
+#follow-up uncorrected
+corrected_followup_brainage %>%
+  metrics(truth = truth, estimate = .pred)
+#follow-up corrected
+corrected_followup_brainage %>%
+  metrics(truth = truth, estimate = corrected_pred)
+
+
+```
+
+Check on talapas model output
+```{r}
+abcd_model_5_9 <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/xgboost_abcd_brain_age_mod_5_9.rds")
+
+abcd_model_4_22 <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/xgboost_abcd_brain_age_mod.rds")
+```
+
+Plots & Decriptives for ABCD Model
+```{r}
+describe(abcd_brainage_baseline)
+#describe(abcd_brainage_baseline %>% filter(truth != 9))
+#describe(abcd_brainage_baseline %>% filter(between(truth, 9, 9.2)))
+
+#Fit Metrics
+#baseline uncorrected
+abcd_brainage_baseline %>%
+  metrics(truth = truth, estimate = .pred)
+#baseline corrected
+abcd_brainage_baseline  %>%
+  metrics(truth = truth, estimate = corrected_pred)
+
+
+
+ggscatter(abcd_brainage_baseline, x = "truth", y = ".pred",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+
+
+ggscatter(abcd_brainage_baseline, x = "truth", y = "gap",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+
+ggscatter(abcd_brainage_baseline, x = "truth", y = "corrected_pred",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   xlab = "Scan/Chronological Age", ylab = "Predicted Age"
+   )
+
+ggscatter(abcd_brainage_baseline, x = "truth", y = "corrected_gap",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   xlab = "Scan/Chronological Age",
+   ylab= "Corrected Gap"
+   ) 
+
+hist(abcd_brainage_baseline$truth)
+
+
+```
+
+### Follow-Up Analyses
+
+```{r}
+# brainage ~ youth mean
+followup_puberty_y_mean_1 <- lm(corrected_gap ~ youth_mean, data = sample_1_followup)
+followup_puberty_y_mean_2 <- lm(corrected_gap ~ youth_mean, data = sample_2_followup)
+
+
+# brainage ~ parent mean
+followup_puberty_p_mean_1 <- lm(corrected_gap ~ parent_mean, data = sample_1_followup)
+followup_puberty_p_mean_2 <- lm(corrected_gap ~ parent_mean, data = sample_2_followup)
+
+
+#Cognition crystallized
+followup_cognition_crystal_1 <- lm(corrected_gap ~ nihtbx_cryst_agecorrected, data=sample_1_followup)
+followup_cognition_crystal_2 <- lm(corrected_gap ~ nihtbx_cryst_agecorrected, data=sample_2_followup)
+```
+
+## Model Summaries
+```{r}
+summary(followup_puberty_y_mean_1)
+summary(followup_puberty_y_mean_2)
+
+
+summary(followup_puberty_p_mean_1)
+summary(followup_puberty_p_mean_2)
+
+summary(followup_cognition_crystal_1)
+summary(followup_cognition_crystal_2)
+```
+
+#### ABCD Model - Baseline
+```{r}
+# brainage ~ youth sum
+abcd_baseline_puberty_y_sum <- lm(corrected_gap ~ youth_sum, data = abcd_baseline)
+
+# brainage ~ youth mean
+abcd_baseline_puberty_y_mean <- lm(corrected_gap ~ youth_mean, data = abcd_baseline)
+
+# brainage ~ parent sum
+abcd_baseline_puberty_p_sum <- lm(corrected_gap ~ parent_sum, data = abcd_baseline)
+
+# brainage ~ parent mean
+abcd_baseline_puberty_p_mean <- lm(corrected_gap ~ parent_mean, data = abcd_baseline)
+
+#Cognition
+abcd_baseline_cognition <- lm(corrected_gap ~ nihtbx_totalcomp_agecorrected, data=abcd_baseline)
+
+#Cognition fluid
+abcd_baseline_cognition_fluid <- lm(corrected_gap ~ nihtbx_fluidcomp_agecorrected, data=abcd_baseline)
+
+#Cognition crystallized
+abcd_baseline_cognition_crystal <- lm(corrected_gap ~ nihtbx_cryst_agecorrected, data=abcd_baseline)
+```
+
+
+
+
+## Model Summaries
+```{r}
+summary(abcd_baseline_puberty_y_mean)
+
+summary(abcd_baseline_puberty_y_sum)
+
+summary(abcd_baseline_puberty_p_mean)
+
+summary(abcd_baseline_puberty_p_sum)
+
+summary(abcd_baseline_cognition_crystal)
+
+summary(abcd_baseline_cognition_fluid)
+
+summary(abcd_baseline_cognition)
+```
+ABCD Baseline Model
+```{r}
+#Youth-Report Puberty
+#make categorical variable for puberty
+#age-corrected cognition: These are presented as Standard Scores (mean=100, SD=15).
+abcd_baseline_categorical_pds <- abcd_baseline %>% 
+  mutate(youth_pds_cat=cut(youth_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")),
+         parent_pds_cat=cut(parent_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")),
+         cognition_cat=cut(nihtbx_totalcomp_agecorrected, breaks=c(-Inf, 85, 115, Inf), labels=c(">-1", "-1-1", ">1")))
+
+#don't z-score, include more than 1 standard deviation and less than 1 standard deviation (ignore within 1 SD)
+
+
+ggpar((abcd_baseline_categorical_pds %>% 
+  filter(!is.na(youth_pds_cat)) %>% 
+  ggdensity(x = "corrected_gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean")), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS") 
+
+#Parent-Report Puberty
+ggpar((abcd_baseline_categorical_pds %>% 
+  filter(!is.na(parent_pds_cat)) %>% 
+ggdensity(x = "corrected_gap", color= "parent_pds_cat", fill= "parent_pds_cat", add="mean")), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS") 
+
+ggpar((abcd_baseline_categorical_pds %>% 
+  filter(!is.na(cognition_cat) & cognition_cat!="-1-1" ) %>% 
+  ggdensity(x = "gap", color= "cognition_cat", fill="cognition_cat", add="mean")), xlab="Brain Age Gap", ylab="Density", legend.title = "Age-Corrected Cognition")
+```
+Examining correlation between vlad's model and abcd model
+```{r}
+
+abcd_brainage_baseline$src_subject_id <- sample_2$src_subject_id
+
+model_compare <- abcd_brainage_baseline %>% 
+  rename(.pred_abcd = .pred,
+         truth_abcd = truth,
+        gap_abcd = gap,
+        corrected_pred_abcd = corrected_pred,
+        corrected_gap_abcd = corrected_gap) %>% 
+    left_join(sample_2)
+
+ggscatter(model_compare, x = "corrected_gap", y = "corrected_gap_abcd",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+
+ggscatter(model_compare, x = "corrected_pred", y = "corrected_pred_abcd",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+
+
+cor.test(model_compare$truth, model_compare$corrected_gap_abcd)
+
+cor.test(model_compare$truth, model_compare$corrected_gap)
+
+
+#Correlation between same participants across models
+cor(model_compare$corrected_gap, model_compare$corrected_gap_abcd)
+
+```
+
+
+
+###########
+Combined Wave Model
+###########
+```{r}
+#Fit Metrics
+#baseline uncorrected
+abcd_brainage_multiwave %>%
+  metrics(truth = truth, estimate = .pred)
+#baseline corrected
+abcd_brainage_baseline  %>%
+  metrics(truth = truth, estimate = corrected_pred)
+
+
+
+ggscatter(corrected_multiwave_brainage, x = "truth", y = ".pred",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+
+
+ggscatter(corrected_multiwave_brainage, x = "truth", y = "gap",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+
+ggscatter(corrected_multiwave_brainage, x = "truth", y = "corrected_pred",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   xlab = "Scan/Chronological Age", ylab = "Predicted Age"
+   )
+
+ggscatter(corrected_multiwave_brainage, x = "truth", y = "corrected_gap",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   xlab = "Scan/Chronological Age"
+   )
+
+
+```
+
+
+
+

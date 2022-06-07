@@ -1,0 +1,120 @@
+---
+title: "ABCDModelMultiwave"
+author: "Lucy Whitmore"
+date: "5/24/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+packages <-  c("tidyverse",
+               "reshape2",
+               "nlme", "lme4",
+               "data.table", "psych",
+               "parallel","lubridate",
+               "ggpubr", "broom", 
+               "apaTables", "MetBrewer")
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+lapply(packages, library, character.only = TRUE)
+```
+
+
+
+Data Import/Set-Up
+```{r}
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/abcd_train_multiwave.Rds")
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/abcd_test_multiwave.Rds")
+
+
+```
+
+Test Model
+```{r}
+abcd_brainage_multiwave_model <- readRDS("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/xgboost_abcd_multiwave_brain_age_mod.rds")
+```
+
+Predict Brain Age (baseline)
+```{r}
+brain_age_df_multiwave <-
+  abcd_brainage_multiwave_model %>%
+  predict(new_data = abcd_test_multiwave) %>%
+  mutate(
+    # provide the chronological age at time of scan
+    truth = abcd_test_multiwave$interview_age
+  ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+
+
+```
+
+
+Evaluate accuracy
+```{r}
+# compute common performance metrics: mae, rsq, rmse
+brain_age_df_multiwave %>%
+  metrics(truth = truth, estimate = .pred)
+```
+
+Optional bias correction
+```{r}
+# bias prediction method, steps in comments,
+# previously determined values hardcoded.
+
+
+#get validation set
+set.seed(42)
+df_split_multiwave <- initial_split(
+  abcd_train_multiwave, 
+  prop = 0.80,
+  # matching age distributions across train and test set
+  strata = "interview_age"
+)
+
+df_validation_multiwave <- testing(df_split_multiwave)
+
+#think I need to now run model on validation set??
+abcd_multiwave_brain_age_correction <-
+  abcd_brainage_multiwave_model %>%
+  predict(new_data = df_validation_multiwave) %>%
+  mutate(
+    # provide the chronological age at time of scan
+    truth = df_validation_multiwave$interview_age
+  ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+
+
+abcd_bias_mod_multiwave <- lm(.pred ~ truth, data = abcd_multiwave_brain_age_correction)
+
+# extract intercept and slope
+#abcd_bias_mod_multiwave$coefficients[["(Intercept)"]]
+abcd_bias_intercept_multiwave <- 6.203475
+#abcd_bias_mod_multiwave$coefficients[["truth"]]
+abcd_bias_slope_multiwave <- 0.4300184
+
+# create bias correct data frame
+#Baseline
+brain_age_corrected_df_multiwave <- brain_age_df_multiwave %>%
+  mutate(
+    # corrected brain age prediction
+    corrected_pred =  (.pred - abcd_bias_intercept_multiwave) / abcd_bias_slope_multiwave
+  ) %>%
+  # corrected corrected brain age gap
+  mutate(corrected_gap = corrected_pred - truth)
+
+
+
+#mine
+brain_age_corrected_df_multiwave %>%
+  metrics(truth = truth, estimate = corrected_pred)
+
+
+save(brain_age_df_multiwave, file="ABCDMultiwaveBrainAge.Rda")
+save(brain_age_corrected_df_multiwave, file="ABCDMultiwaveBrainAgeCorrected.Rda")
+
+
+```

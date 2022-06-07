@@ -148,7 +148,7 @@ sample_2 <- brainage_pds[-sample_ind, ]
 t.test(sample_1$interview_age, sample_2$interview_age)
 
 #Save samples
-
+save(brainage_pds, file="BrainagePDS.Rda")
 save(sample_1, file="Sample1.Rda")
 save(sample_2, file = "Sample2.Rda")
 
@@ -248,9 +248,34 @@ summary(baseline_cognition_crystal_2)
 
 Model Figures
 ```{r}
-plot_model(baseline_puberty_y_mean_1, type="pred", terms = "youth_mean", colors = "#67322e", title = "Predicted Gap") +
-  theme_sjplot()
+# Youth-Report Puberty
+ggplot(sample_1, aes(x = youth_mean, y = corrected_gap)) +
+  stat_smooth(method = "lm", col = "#F08000", fill="#F08000") +
+  xlab("Pubertal Development (Youth-Report)") +
+  ylab("BrainAGE") +
+  ggtitle("Predicted Values") +
+  theme_minimal()
 
+# Parent-Report Puberty
+ggplot(sample_1, aes(x = parent_mean, y = corrected_gap)) +
+    stat_smooth(method = "lm", col = "#F08000", fill="#F08000") +
+  xlab("Pubertal Development (Parent-Report)") +
+  ylab("BrainAGE") +
+  ggtitle("Predicted Values") +
+  theme_minimal()
+
+#Cognition
+ggplot(sample_1, aes(x = nihtbx_totalcomp_agecorrected, y = corrected_gap)) +
+    stat_smooth(method = "lm", col = "#F08000", fill="#F08000") +
+  xlab("Age-Corrected Cognition Scores") +
+  ylab("BrainAGE") +
+  ggtitle("Predicted Values") +
+  theme_minimal()
+
+
+
+
+#Old Versions
 plot_model(baseline_puberty_p_mean_1, type="pred", terms = "parent_mean", title = "Predicted Gap") +
   theme_sjplot()
 
