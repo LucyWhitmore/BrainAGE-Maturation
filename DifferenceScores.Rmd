@@ -1,0 +1,163 @@
+---
+title: "ChangeScores"
+author: "Lucy Whitmore"
+date: "7/7/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+packages <-  c("tidyverse",
+               "reshape2",
+               "nlme", "lme4",
+               "data.table", "psych",
+               "parallel","lubridate",
+               "ggpubr", "broom", 
+               "apaTables", "MetBrewer")
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+lapply(packages, library, character.only = TRUE)
+```
+
+Load Structural Data
+```{r}
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/renamed_smri_followup.Rda")
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/renamed_smri_baseline.Rda")
+
+smri_abcd_model_baseline <- renamed_smri_baseline[, 1:180] 
+smri_abcd_model_followup <- renamed_smri_followup[, 1:180] 
+
+```
+
+Load data
+```{r}
+#Load smri_baseline
+
+#Load smri_followup
+
+smri_difference <- left_join(smri_abcd_model_baseline, smri_abcd_model_followup, by ="src_subject_id")
+#could right join to reduce NAs 
+
+```
+
+
+for loop - doesn't work very well
+```{r}
+difference1 <- c(1, 2, 3, 4, 5)
+difference2 <- c(2, 4, 6, 8, 10)
+difference3 <- c(1, 3, 5, 7, 9)
+difference4 <- c(1, 2, 3, 4, 5)
+difference5 <- c(5, 4, 3, 2, 1)
+difference6 <- c(1, 2, 3, 5, 8)
+
+difference_df <- data.frame(difference1, difference2, difference3, difference4, difference5, difference6)
+difference_df
+
+for (i in 1:(ncol(difference_df)/2)){
+  print(i)
+  print(i + ncol(difference_df)/2)
+  difference_df[ncol(difference_df)+1] <-  difference_df[i + ncol(difference_df)/2] - difference_df[i]
+  #print(dif)
+}
+```
+
+other version
+```{r}
+#make empty dataframe that only has ids/numbers
+#loop through columns, subtract as usual
+#rbind (or append, or join, or whatever) the new difference score column onto the new data frame
+#end up with dataframe of only ids and difference scores
+diff_df <- data.frame(c("id1", "id2", "id3", "id4", "id5"))
+
+for (i in 1:(ncol(difference_df)/2)){
+  #print(i)
+  #print(i + ncol(difference_df)/2)
+  print((difference_df[i + ncol(difference_df)/2] - difference_df[i]))
+  cbind(diff_df, (difference_df[i + ncol(difference_df)/2] - difference_df[i]))  
+  #print(dif)
+}
+diff_df
+```
+
+Calculate difference scores format
+# Stack Exchange - this works!
+```{r}
+
+difference1.x <- c(1, 2, 3, 4, 5)
+difference2.x <- c(2, 4, 6, 8, 10)
+difference3.x <- c(1, 3, 5, 7, 9)
+difference1.y <- c(1, 2, 3, 4, 5)
+difference2.y <- c(5, 4, 3, 2, 1)
+difference3.y <- c(1, 2, 3, 5, 8)
+
+difference_df_xy <- data.frame(difference1.x, difference2.x, difference3.x, difference1.y, difference2.y, difference3.y)
+difference_df_xy
+
+# Stack Exchange - this works!
+difference_df_xy %>%
+ mutate(across(ends_with(".y"), .names = "{col}_diff") - across(ends_with(".x"))) %>%
+ rename_with(~ sub("_\\d+", "", .), ends_with("_diff"))
+
+#need to subtract, then divide by age gap
+```
+
+Calculate difference scores
+```{r}
+smri_difference_calculated <- smri_difference %>%
+ select(-c(subjectkey.x,subjectkey.y, sex.x,sex.y, eventname.x,eventname.y)) %>% 
+ mutate(across(ends_with(".y"), .names = "{col}_diff") - across(ends_with(".x"))) %>%
+ rename_with(~ sub("_\\d+", "", .), ends_with("_diff"))
+
+#need to subtract, then divide by age gap
+```
+
+Test to make sure this worked
+```{r}
+smri_difference_calculated$interview_age.y[1] - smri_difference_calculated$interview_age.x[1]
+smri_difference_calculated$interview_age.y_diff[1]
+
+
+smri_difference_calculated$FS_L_Fusiform_Area.y[1] - smri_difference_calculated$FS_L_Fusiform_Area.x[1]
+smri_difference_calculated$FS_L_Fusiform_Area.y_diff[1]
+
+
+#test with NA
+smri_difference_calculated$interview_age.y[3] - smri_difference_calculated$interview_age.x[3]
+smri_difference_calculated$interview_age.y_diff[3]
+
+smri_difference_calculated$FS_L_Fusiform_Area.y[3] - smri_difference_calculated$FS_L_Fusiform_Area.x[3]
+smri_difference_calculated$FS_L_Fusiform_Area.y_diff[3]
+
+
+#stopifnot(smri_difference_calculated$FS_L_Fusiform_Area.y[3] - smri_difference_calculated$FS_L_Fusiform_Area.x[3] == smri_difference_calculated$FS_L_Fusiform_Area.y_diff[3])
+
+
+
+```
+
+Prep for training
+```{r}
+# Select only difference columns
+smri_difference_calculated_subset <- smri_difference_calculated %>% 
+  select(src_subject_id, ends_with("diff")) 
+  #divide all brain columns by interview age
+  
+smri_difference_calculated_scaled<- smri_difference_calculated_subset[,-(1:2)] %>% sapply(`/`, smri_difference_calculated_subset[,2]) 
+
+smri_difference_calculated_scaled$src_subject_id <- smri_difference_calculated_subset$src_subject_id
+
+smri_difference_calculated_scaled$interview_age_diff <- smri_difference_calculated_subset$interview_age.y_diff
+
+smri_difference_calculated_scaled <- smri_difference_calculated_scaled
+select(src_subject_id, interview_age_diff, everything())
+
+
+# Should we be predicting the change in age?
+set.seed(42)
+smri_difference_calculated <- smri_difference_calculated %>% 
+#split for testing
+select(-c(src_subject_id))
+
+```

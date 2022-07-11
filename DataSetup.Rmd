@@ -1,5 +1,7 @@
 ---
-title: "DataSetup"
+title: "FYP Redo"
+author: "Lucy Whitmore"
+date: "5/19/2022"
 output: html_document
 ---
 
@@ -19,84 +21,55 @@ if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
 lapply(packages, library, character.only = TRUE)
 ```
 
-
 Load Structural Data
 ```{r}
 #Load list of included subjects
-struc_include<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
+struc_include_baseline<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
   filter(!collection_title=="collection_title") %>% 
-  select(1:12) %>% 
+  select(1:11) %>% 
   mutate(interview_age = as.numeric(interview_age),
-        imgincl_t1w_include = as.numeric(imgincl_t1w_include),
-        imgincl_t2w_include = as.numeric(imgincl_t2w_include)) %>% 
-  filter(imgincl_t1w_include == 1)
+        imgincl_t1w_include = as.numeric(imgincl_t1w_include)) %>% 
+  filter(imgincl_t1w_include == 1) %>% 
+  filter(eventname=="baseline_year_1_arm_1")
+  
+  
+struc_include_followup<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(1:11) %>% 
+  mutate(interview_age = as.numeric(interview_age),
+        imgincl_t1w_include = as.numeric(imgincl_t1w_include)) %>% 
+  filter(imgincl_t1w_include == 1) %>% 
+  filter(eventname=="2_year_follow_up_y_arm_1")
+
 
 #Load structural data
 #Filter for volume & area measurements
-smri_1 <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip10201.txt") %>%
+smri_baseline <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip10201.txt") %>%
+  filter(eventname=="baseline_year_1_arm_1") %>% 
   filter(!collection_title=="collection_title") %>% 
-  filter(src_subject_id%in%struc_include$src_subject_id) %>% 
-  select(subjectkey, src_subject_id, interview_age, sex, eventname, matches("vol|area")) 
+  filter(src_subject_id%in%struc_include_baseline$src_subject_id) %>% 
+  select(subjectkey, src_subject_id, interview_age, sex, eventname, matches("vol|area")) %>% 
+  select(-contains(c('cf'))) %>% #remove genetically derived parcellations
+  select(-c(smri_area_cdk_totallh, smri_area_cdk_totalrh, smri_area_cdk_total, smri_vol_scs_lesionlh, smri_vol_scs_lesionrh, smri_vol_scs_wmhint, smri_vol_scs_wmhintlh, smri_vol_scs_wmhintrh, smri_vol_scs_wholeb, smri_vol_scs_latventricles, smri_vol_scs_allventricles, smri_vol_scs_cbwmatterrh, smri_vol_scs_cbwmatterlh))
 
-smri_baseline <- smri_1%>% 
-  filter(eventname=="baseline_year_1_arm_1")
 
-smri_followup <- smri_1%>% 
-  filter(eventname=="2_year_follow_up_y_arm_1")
-  
-#T1 intensity, might not need
-smri_2 <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip20201.txt") %>%
+
+smri_followup <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip10201.txt") %>%
+  filter(eventname=="2_year_follow_up_y_arm_1") %>% 
   filter(!collection_title=="collection_title") %>% 
-  filter(src_subject_id%in%struc_include$src_subject_id)
+  filter(src_subject_id%in%struc_include_followup$src_subject_id) %>% 
+  select(subjectkey, src_subject_id, interview_age, sex, eventname, matches("vol|area")) %>% 
+  select(-contains(c('cf'))) %>% #remove genetically derived parcellations
+  select(-c(smri_area_cdk_totallh, smri_area_cdk_totalrh, smri_area_cdk_total, smri_vol_scs_lesionlh, smri_vol_scs_lesionrh, smri_vol_scs_wmhint, smri_vol_scs_wmhintlh, smri_vol_scs_wmhintrh, smri_vol_scs_wholeb, smri_vol_scs_latventricles, smri_vol_scs_allventricles, smri_vol_scs_cbwmatterrh, smri_vol_scs_cbwmatterlh))
 
-#Rename data to fit naming conventions
-#????
+
+#renamed_smri_baseline<-rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/renamed_smri_baseline.Rda")
 
 ```
 
-Load Other Data
+
+Rename Columns Baseline
 ```{r}
-#Puberty
-youth_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ypdms01.txt") %>%
-  filter(!collection_title=="collection_title")
-
-youth_pub_sum <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ssphy01.txt") %>%
-  filter(!collection_title=="collection_title")
-
-parent_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ppdms01.txt") %>%
-  filter(!collection_title=="collection_title")
-
-parent_pub_sum <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ssphp01.txt") %>%
-  filter(!collection_title=="collection_title")
-  
-saliva <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_hsss01.txt") %>%
-  filter(!collection_title=="collection_title")
-
-#parent sum scores abcd_mhp01
-#youth sum scores abcd_mhy01
-  
-#Cognition
-cognition <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_tbss01.txt") %>%
-  filter(!collection_title=="collection_title") %>% 
-  select(subjectkey, src_subject_id, interview_age, sex, eventname, nihtbx_fluidcomp_fc, nihtbx_cryst_fc, nihtbx_totalcomp_fc)
-
-#Height/weight metrics
-physical <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ant01.txt") %>%
-  filter(!collection_title=="collection_title")  %>% 
-  select(subjectkey, src_subject_id, interview_age, sex, eventname, anthroheightcalc, anthroweightcalc)
-
-#Sexual attraction and behavior
-gish <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_gish2y01.txt") %>%
-  filter(!collection_title=="collection_title") 
-
-#Grade level, parent report
-grade <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_gish2y01.txt") %>%
-  filter(!collection_title=="collection_title") %>% 
-  select(subjectkey, src_subject_id, interview_date, interview_age, sex, eventname, demo_ed_v2)
-```
-
-Template for renaming sMRI variables
-```{r, eval=F}
 renamed_smri_baseline <- smri_baseline %>% 
   rename(FS_InterCranial_Vol = smri_vol_scs_intracranialv, #technically inter vs intra
 #FS_BrainSeg_Vol
@@ -134,7 +107,7 @@ FS_L_VentDC_Vol = smri_vol_scs_vedclh,
 FS_R_LatVent_Vol = 	smri_vol_scs_ltventriclerh,
 FS_R_InfLatVent_Vol = smri_vol_scs_inflatventrh,
 FS_R_Cerebellum_WM_Vol = smri_vol_scs_crbwmatterrh,
-# no cerebellum cort vol?
+FS_R_Cerebellum_Cort_Vol = smri_vol_scs_crbcortexrh,
 FS_R_ThalamusProper_Vol = smri_vol_scs_tprh,
 FS_R_Caudate_Vol = smri_vol_scs_caudaterh,
 FS_R_Putamen_Vol = smri_vol_scs_putamenrh,
@@ -307,41 +280,37 @@ renamed_smri_baseline[,"FS_R_ChoroidPlexus_Vol"] <- NA
 renamed_smri_baseline[,"FS_OpticChiasm_Vol"] <- NA
 renamed_smri_baseline[,"FS_Total_GM_Vol"] <- NA
 
-#renamed_smri <- subset(renamed_smri, select = -c(269,279))
-
 
 #Convert to numeric
-renamed_smri_baseline[,6:279] <- sapply(renamed_smri_baseline[,6:279],as.numeric)
+renamed_smri_baseline[,6:ncol(renamed_smri_baseline)] <- sapply(renamed_smri_baseline[,6:ncol(renamed_smri_baseline)],as.numeric)
 renamed_smri_baseline <- renamed_smri_baseline %>% 
   mutate(interview_age = as.numeric(interview_age)/12)
 
 save(renamed_smri_baseline, file="renamed_smri_baseline.Rda")
 
 
+smri_abcd_model_baseline <- renamed_smri_baseline[, 1:180] 
 ```
 
 
-
-
-
-Feature list template
-```{r, eval=F}
-#Template
-FS_InterCranial_Vol = smri_vol_scs_intracranialv, #technically inter vs intra
-FS_BrainSeg_Vol
-FS_BrainSeg_Vol_No_Vent
-FS_BrainSeg_Vol_No_Vent_Surf
+Rename Columns Follow-up
+```{r}
+renamed_smri_followup <- smri_followup %>% 
+  rename(FS_InterCranial_Vol = smri_vol_scs_intracranialv, #technically inter vs intra
+#FS_BrainSeg_Vol
+#FS_BrainSeg_Vol_No_Vent
+#FS_BrainSeg_Vol_No_Vent_Surf
 FS_LCort_GM_Vol = smri_vol_cdk_totallh,
 FS_RCort_GM_Vol = smri_vol_cdk_totalrh,
 FS_TotCort_GM_Vol = smri_vol_cdk_total, #total whole brain cortical volume
 FS_SubCort_GM_Vol = smri_vol_scs_subcorticalgv,
-FS_Total_GM_Vol #maybe just calculate?
+#FS_Total_GM_Vol #maybe just calculate?
 FS_SupraTentorial_Vol = smri_vol_scs_suprateialv, #assuming this includes all ventricles
-FS_SupraTentorial_Vol_No_Vent  #smri_vol_scs_allventricles is all ventricles, subtract?
-FS_SupraTentorial_No_Vent_Voxel_Count
-FS_Mask_Vol
-FS_BrainSegVol_eTIV_Ratio
-FS_MaskVol_eTIV_Ratio
+#FS_SupraTentorial_Vol_No_Vent  #smri_vol_scs_allventricles is all ventricles, subtract?
+#FS_SupraTentorial_No_Vent_Voxel_Count
+#FS_Mask_Vol
+#FS_BrainSegVol_eTIV_Ratio
+#FS_MaskVol_eTIV_Ratio
 FS_L_LatVent_Vol = smri_vol_scs_ltventriclelh,
 FS_L_InfLatVent_Vol = smri_vol_scs_inflatventlh,
 FS_L_Cerebellum_WM_Vol = smri_vol_scs_crbwmatterlh,
@@ -350,31 +319,31 @@ FS_L_ThalamusProper_Vol = smri_vol_scs_tplh,
 FS_L_Caudate_Vol = smri_vol_scs_caudatelh,
 FS_L_Putamen_Vol = smri_vol_scs_putamenlh,
 FS_L_Pallidum_Vol = smri_vol_scs_pallidumlh,
-FS_3rdVent_Vol = 	smri_vol_scs_3rdventricle,
+FS_3rdVent_Vol = smri_vol_scs_3rdventricle,
 FS_4thVent_Vol = smri_vol_scs_4thventricle,
 FS_BrainStem_Vol = smri_vol_scs_bstem,
 FS_L_Hippo_Vol = smri_vol_scs_hpuslh,
 FS_L_Amygdala_Vol =	smri_vol_scs_amygdalalh,
-FS_CSF_Vol = 	smri_vol_scs_csf,
-FS_L_AccumbensArea_Vol = 	smri_vol_scs_aal,
+FS_CSF_Vol = smri_vol_scs_csf,
+FS_L_AccumbensArea_Vol = smri_vol_scs_aal,
 FS_L_VentDC_Vol = smri_vol_scs_vedclh,
-FS_L_Vessel_Vol
-FS_L_ChoroidPlexus_Vol
-FS_R_LatVent_Vol = smri_vol_scs_ltventriclerh,
+#FS_L_Vessel_Vol
+#FS_L_ChoroidPlexus_Vol
+FS_R_LatVent_Vol = 	smri_vol_scs_ltventriclerh,
 FS_R_InfLatVent_Vol = smri_vol_scs_inflatventrh,
 FS_R_Cerebellum_WM_Vol = smri_vol_scs_crbwmatterrh,
-# no cerebellum cort vol?
+FS_R_Cerebellum_Cort_Vol = smri_vol_scs_crbcortexrh,
 FS_R_ThalamusProper_Vol = smri_vol_scs_tprh,
 FS_R_Caudate_Vol = smri_vol_scs_caudaterh,
 FS_R_Putamen_Vol = smri_vol_scs_putamenrh,
 FS_R_Pallidum_Vol = smri_vol_scs_pallidumrh,
-FS_R_Hippo_Vol = 	smri_vol_scs_hpusrh,
+FS_R_Hippo_Vol = smri_vol_scs_hpusrh,
 FS_R_Amygdala_Vol = smri_vol_scs_amygdalarh,
-FS_R_AccumbensArea_Vol = smri_vol_scs_aar,
+FS_R_AccumbensArea_Vol = 	smri_vol_scs_aar,
 FS_R_VentDC_Vol = smri_vol_scs_vedcrh,
-FS_R_Vessel_Vol
-FS_R_ChoroidPlexus_Vol
-FS_OpticChiasm_Vol
+#FS_R_Vessel_Vol
+#FS_R_ChoroidPlexus_Vol
+#FS_OpticChiasm_Vol
 FS_CC_Posterior_Vol = smri_vol_scs_ccps,
 FS_CC_MidPosterior_Vol = smri_vol_scs_ccmidps,
 FS_CC_Central_Vol = smri_vol_scs_ccct,
@@ -447,7 +416,7 @@ FS_R_Supramarginal_Area = smri_area_cdk_smrh,
 FS_R_Frontalpole_Area = smri_area_cdk_frpolerh,
 FS_R_Temporalpole_Area = smri_area_cdk_tmpolerh,
 FS_R_Transversetemporal_Area = smri_area_cdk_trvtmrh,
-FS_R_Insula_Area = 	smri_area_cdk_insularh,
+FS_R_Insula_Area = smri_area_cdk_insularh,
 #abcd technically doesn't say gray matter volume for the following varibles
 FS_L_Bankssts_GrayVol = smri_vol_cdk_banksstslh,
 FS_L_Caudalanteriorcingulate_GrayVol = smri_vol_cdk_cdacatelh,
@@ -517,6 +486,295 @@ FS_R_Frontalpole_GrayVol = smri_vol_cdk_frpolerh,
 FS_R_Temporalpole_GrayVol = smri_vol_cdk_tmpolerh,
 FS_R_Transversetemporal_GrayVol = smri_vol_cdk_trvtmrh,
 FS_R_Insula_GrayVol = smri_vol_cdk_insularh
+)
+
+
+#Create empty columns to match feature list
+renamed_smri_followup[,"FS_BrainSeg_Vol"] <- NA
+renamed_smri_followup[,"FS_BrainSeg_Vol_No_Vent"] <- NA
+renamed_smri_followup[,"FS_BrainSeg_Vol_No_Vent_Surf"] <- NA
+renamed_smri_followup[,"FS_SupraTentorial_Vol_No_Vent"] <- NA
+renamed_smri_followup[,"FS_SupraTentorial_No_Vent_Voxel_Count"] <- NA
+renamed_smri_followup[,"FS_Mask_Vol"] <- NA
+renamed_smri_followup[,"FS_BrainSegVol_eTIV_Ratio"] <- NA
+renamed_smri_followup[,"FS_MaskVol_eTIV_Ratio"] <- NA
+renamed_smri_followup[,"FS_L_Vessel_Vol"] <- NA
+renamed_smri_followup[,"FS_L_ChoroidPlexus_Vol"] <- NA
+renamed_smri_followup[,"FS_R_Vessel_Vol"] <- NA
+renamed_smri_followup[,"FS_R_ChoroidPlexus_Vol"] <- NA
+renamed_smri_followup[,"FS_OpticChiasm_Vol"] <- NA
+renamed_smri_followup[,"FS_Total_GM_Vol"] <- NA
+
+
+#Convert to numeric
+renamed_smri_followup[,6:ncol(renamed_smri_followup)] <- sapply(renamed_smri_followup[,6:ncol(renamed_smri_followup)],as.numeric)
+renamed_smri_followup <- renamed_smri_followup %>% 
+  mutate(interview_age = as.numeric(interview_age)/12)
+
+save(renamed_smri_followup, file="renamed_smri_followup.Rda")
+
+
+smri_abcd_model_followup <- renamed_smri_followup[, 1:180] 
+```
+
+
+
+Load Other Variables
+```{r}
+#Puberty
+#Raw scores, youth
+youth_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ypdms01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(5:38) %>% 
+  select(-c(interview_date, pds_remote___1, pds_remote___2, pds_remote___3, pds_remote___4, pds_device)) %>% 
+  mutate_at(c(5:28), as.numeric)
+
+#Raw scores, parent
+parent_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ppdms01.txt") %>%
+  filter(!collection_title=="collection_title")  %>% 
+  select(5:27) %>% 
+  select(-c(interview_date, pds_select_language___1)) %>% 
+  mutate_at(c(5:21), as.numeric)
+
+#Cognition Scores (Age-Corrected)
+cognition <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_tbss01.txt") %>%
+  filter(!collection_title=="collection_title")  %>% 
+  select(src_subject_id,interview_age, eventname, nihtbx_fluidcomp_agecorrected, nihtbx_cryst_agecorrected, nihtbx_totalcomp_agecorrected, nihtbx_totalcomp_rawscore, nihtbx_totalcomp_cs, nihtbx_totalcomp_itmcnt) %>% 
+  mutate_at(c(2, 4:9), as.numeric)
+
+#nihtbx_totalcomp_rawscore total cognition raw score
+#nihtbx_totalcomp_cs total cognition computed score
+#	nihtbx_totalcomp_itmcnt cognition total composite item count
+# might need to adjust for tasks completed?
+
+social <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_gish2y01.txt") %>%
+  filter(!collection_title=="collection_title")  %>% 
+  select(-c(subjectkey, interview_date, interview_age, gish2_device)) %>% 
+  mutate_at(c(4:16), as.numeric)
+
+#calculate gish score
+```
+
+
+## Format Puberty Data 
+```{r}
+#two or more missing values = exclude
+#PDS mean score is a continuous value calculated by averaging across PDS items following Herting et al. (2021). Items on the PDS were considered missing if participants answered, “I don’t know” or “refuse to answer”, if the response was left blank, or if the response value was outside of the expected range (1 to 4). Participants with two or more missing answers were excluded from the PDS score calculation (following recommendations from (Herting et al., 2021)
+
+
+### Youth-report, removes everyone w/o complete data
+youth_pds[youth_pds == 777] <- NA
+youth_pds[youth_pds == 999] <- NA
+
+
+# Multiwave
+youth_pds_multiwave <- youth_pds %>% 
+  filter(eventname == "baseline_year_1_arm_1" | eventname == "2_year_follow_up_y_arm_1") %>% 
+  mutate(youth_sum = case_when(sex == "M" ~ #male
+                           (pds_ht2_y + pds_bdyhair_y + pds_skin2_y + pds_m4_y + pds_m5_y),  
+                         sex == "F" ~ #female
+                           (pds_ht2_y + pds_bdyhair_y + pds_skin2_y + pds_f4_2_y + pds_f5_y))) %>% 
+  mutate(youth_mean = youth_sum/5)  %>% 
+  select(src_subject_id, sex, youth_sum, youth_mean)
+
+youth_pds_baseline <- youth_pds_multiwave %>% 
+  filter(eventname == "baseline_year_1_arm_1") 
+  
+youth_pds_followup <- youth_pds_multiwave %>% 
+  filter(eventname == "2_year_follow_up_y_arm_1") 
+  
+
+
+#### Parent-report, removes everyone w/o complete data
+parent_pds[parent_pds == 777] <- NA
+parent_pds[parent_pds == 999] <- NA
+
+#Baseline
+
+
+parent_pds_multiwave <- parent_pds %>% 
+    filter(eventname == "baseline_year_1_arm_1" | eventname == "2_year_follow_up_y_arm_1") %>% 
+    mutate(parent_sum = case_when(sex == "M" ~ #male
+                           (pds_1_p + pds_2_p + pds_3_p + pds_m4_p + pds_m5_p),  
+                         sex == "F" ~ #female
+                           (pds_1_p + pds_2_p + pds_3_p + pds_f4_p + pds_f5b_p))) %>% 
+  mutate(parent_mean = parent_sum/5) %>% 
+  select(src_subject_id, sex, parent_sum, parent_mean)
+
+
+parent_pds_baseline <- parent_pds_multiwave %>% 
+    filter(eventname == "baseline_year_1_arm_1")
+
+
+parent_pds_followup <- parent_pds_multiwave%>% 
+    filter(eventname == "2_year_follow_up_y_arm_1")
+
+
+#### Cognition
+
+#Baseline
+cognition_baseline <- cognition %>% 
+  filter(eventname == "baseline_year_1_arm_1") 
+
+#Follow-Up
+cognition_followup <- cognition %>% 
+  filter(eventname == "2_year_follow_up_y_arm_1")
+
+#Multiwave
+cognition_multiwave <- cognition %>% 
+  filter(eventname == "baseline_year_1_arm_1" | eventname == "2_year_follow_up_y_arm_1")
+```
+
+Add age to brainAGE estimates
+```{r}
+corrected_baseline_brainage <- brain_age_corrected_df_baseline
+corrected_followup_brainage <- brain_age_corrected_df_followup
+
+corrected_baseline_brainage$src_subject_id <- smri_baseline$src_subject_id
+
+corrected_followup_brainage$src_subject_id <- smri_followup$src_subject_id
+
+```
+
+Split Samples for Analysis
+```{r}
+
+brainage_pds_baseline <- corrected_baseline_brainage[, c(6,1:5)] %>% 
+  left_join(youth_pds_baseline) %>% 
+  left_join(parent_pds_baseline) %>% 
+  left_join(cognition_baseline)
+
+
+#Split sample
+smp_size_baseline <- floor(0.5 * nrow(brainage_pds_baseline))
+
+## set the seed to make your partition reproducible
+set.seed(123)
+sample_ind_baseline <- sample(seq_len(nrow(brainage_pds_baseline)), size = smp_size_baseline)
+
+sample_1_baseline <- brainage_pds_baseline[sample_ind_baseline, ]
+sample_2_baseline <- brainage_pds_baseline[-sample_ind_baseline, ]
+
+#t test for age differences
+t.test(sample_1_baseline$interview_age, sample_2_baseline$interview_age)
+
+#Save samples
+save(brainage_pds_baseline, file="BrainagePDSBaseline.Rda")
+save(sample_1_baseline, file="Sample1Baseline.Rda")
+save(sample_2_baseline, file = "Sample2Baseline.Rda")
+
+
+
+
+# Follow-Up
+brainage_pds_followup <- corrected_followup_brainage[, c(6,1:5)] %>% 
+  left_join(youth_pds_followup) %>% 
+  left_join(parent_pds_followup) %>% 
+  left_join(cognition_followup)
+
+
+#Split sample
+smp_size_followup <- floor(0.5 * nrow(brainage_pds_followup))
+
+## set the seed to make your partition reproducible
+set.seed(123)
+sample_ind_followup <- sample(seq_len(nrow(brainage_pds_followup)), size = smp_size_followup)
+
+sample_1_followup <- brainage_pds_followup[sample_ind_followup, ]
+sample_2_followup <- brainage_pds_followup[-sample_ind_followup, ]
+
+#t test for age differences
+t.test(sample_1_followup$interview_age, sample_2_followup$interview_age)
+
+#Save samples
+save(brainage_pds_followup, file="BrainagePDSFollowUp.Rda")
+save(sample_1_followup, file="Sample1FollowUp.Rda")
+save(sample_2_followup, file = "Sample2FollowUp.Rda")
+```
+
+#################
+Make Dataframe for ABCD Model Training & Testing
+################
+```{r}
+
+#smri_abcd_model_baseline <- renamed_smri_baseline[, 1:180] 
+
+training_sample_baseline <- filter(smri_abcd_model_baseline, src_subject_id %in% sample_1_baseline$src_subject_id) %>% 
+  select(-c(subjectkey, src_subject_id, sex, eventname))
+
+analysis_sample_baseline <- filter(smri_abcd_model_baseline, src_subject_id %in% sample_2_baseline$src_subject_id)
+
+save(training_sample_baseline, file="training_sample_baseline.Rds")
+save(analysis_sample_baseline, file="analysis_sample_baseline.Rds")
+
+```
+
+
+#################
+Make Dataframe of sMRI features for combined wave model
+################
+```{r}
+
+#Pull 1800 total
+#900 from each
+#Pull 900 from baseline
+#filter those 900 out of the followup and then pull 900
+
+
+## set the seed to make your partition reproducible
+set.seed(42)
+#Pull 900 from baseline
+sample_ind_abcd_baseline <- sample(seq_len(nrow(smri_abcd_model_baseline)), size = 900)
+
+abcd_train_baseline <- smri_abcd_model_baseline[sample_ind_abcd_baseline, ]
+abcd_test_baseline <- smri_abcd_model_baseline[-sample_ind_abcd_baseline, ]
+
+
+#filter baseline participants out of follow-up
+smri_abcd_model_followup_filtered <- smri_abcd_model_followup %>% 
+  filter(!src_subject_id %in% abcd_train_baseline$src_subject_id)
+
+set.seed(42)
+#Pull 900 from followup
+sample_ind_abcd_followup <- sample(seq_len(nrow(smri_abcd_model_followup_filtered )), size = 900)
+
+abcd_train_followup <- smri_abcd_model_followup[sample_ind_abcd_followup, ]
+abcd_test_followup <- smri_abcd_model_followup[-sample_ind_abcd_followup, ]
+
+
+abcd_train_multiwave <- rbind(abcd_train_baseline, abcd_train_followup) %>% 
+  select(-c(subjectkey, src_subject_id, sex, eventname))
+save(abcd_train_multiwave, file="abcd_train_multiwave.Rds")
+
+abcd_test_multiwave <- rbind(abcd_test_baseline, abcd_test_followup)
+save(abcd_test_multiwave, file="abcd_test_multiwave.Rds")
+
+```
+
+
+##############
+Add Other Variable to Multiwave Test
+##############
+Add age to brainAGE estimates
+```{r}
+#load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/ABCDMultiwaveBrainAgeCorrected.Rda")
+
+corrected_multiwave_brainage <- brain_age_corrected_df_multiwave
+
+corrected_multiwave_brainage$src_subject_id <- abcd_test_multiwave$src_subject_id
+
+
+#combine waves of youth pds
+
+#combine waves of parent pds
+
+#combine waves of cognition
+
+#change
+brainage_pds_multiwave <- corrected_multiwave_brainage[, c(6,1:5)] %>% 
+  left_join(youth_pds_multiwave) %>% 
+  left_join(parent_pds_multiwave) %>% 
+  left_join(cognition_multiwave)
 
 
 ```
