@@ -7,11 +7,11 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 #Install XGboost & tidymodels
-packageUrl <- "https://cran.r-project.org/src/contrib/Archive/xgboost/xgboost_1.0.0.2.tar.gz"
+#packageUrl <- "https://cran.r-project.org/src/contrib/Archive/xgboost/xgboost_1.0.0.2.tar.gz"
 # You then install this version of the package using
-install.packages(packageUrl, repos = NULL, type = 'source')
+#install.packages(packageUrl, repos = NULL, type = 'source')
 
-install.packages("tidymodels")
+#install.packages("tidymodels")
 
 
 library(here) # OS agnostic relative paths (relative to project dir)
@@ -31,14 +31,16 @@ xgb_mod <- readRDS(
     "DevelopmentalBrainAge/model/xgboost_9to19_brain_age_mod.rds"))
 ```
 
+
+
 Predict Brain Age
 ```{r}
-brain_age_df <-
+brain_age_df_baseline <-
   xgb_mod %>%
-  predict(new_data = renamed_smri) %>%
+  predict(new_data = renamed_smri_baseline) %>%
   mutate(
     # provide the chronological age at time of scan
-    truth = renamed_smri$interview_age
+    truth = renamed_smri_baseline$interview_age
   ) %>%
   # compute the brain age gap by subtracting chronological age from prediction
   mutate(gap = .pred - truth)
@@ -58,7 +60,7 @@ brain_age_df_followup <-
 Evaluate accuracy
 ```{r}
 # compute common performance metrics: mae, rsq, rmse
-brain_age_df %>%
+brain_age_df_baseline %>%
   metrics(truth = truth, estimate = .pred)
 
 brain_age_df_followup %>%
@@ -73,10 +75,10 @@ Optional bias correction
 
 # extract intercept and slope
 bias_intercept <- 6.41 # xgb_bias_mod$coefficients[["(Intercept)"]]
-bias_slope <-  0.55 # xgb_bias_mod$coefficients[["truth"]]
+bias_slope <- 0.55 # xgb_bias_mod$coefficients[["truth"]]
 
 # create bias correct data frame
-brain_age_corrected_df <- brain_age_df %>%
+brain_age_corrected_df_baseline <- brain_age_df_baseline %>%
   mutate(
     # corrected brain age prediction
     corrected_pred =  (.pred - bias_intercept) / bias_slope
@@ -94,20 +96,34 @@ brain_age_corrected_df_followup <- brain_age_df_followup %>%
 
 
 #mine
-brain_age_corrected_df %>%
+brain_age_corrected_df_baseline %>%
   metrics(truth = truth, estimate = corrected_pred)
 
 brain_age_corrected_df_followup %>%
   metrics(truth = truth, estimate = corrected_pred)
 
 
-save(brain_age_df, file="BaselineBrainAge.Rda")
-save(brain_age_corrected_df, file="BaselineBrainAgeCorrected.Rda")
+save(brain_age_df_baseline, file="BaselineBrainAge.Rda")
+save(brain_age_corrected_df_baseline, file="BaselineBrainAgeCorrected.Rda")
 
 save(brain_age_df_followup, file="FollowUpBrainAge.Rda")
 save(brain_age_corrected_df_followup, file="FollowUpBrainAgeCorrected.Rda")
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 plotting

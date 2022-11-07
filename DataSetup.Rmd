@@ -521,6 +521,11 @@ smri_abcd_model_followup <- renamed_smri_followup[, 1:180]
 
 Load Other Variables
 ```{r}
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/BaselineBrainAgeCorrected.Rda")
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/FollowUpBrainAgeCorrected.Rda")
+
+
+
 #Puberty
 #Raw scores, youth
 youth_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ypdms01.txt") %>%
@@ -539,18 +544,20 @@ parent_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ppdms01.
 #Cognition Scores (Age-Corrected)
 cognition <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_tbss01.txt") %>%
   filter(!collection_title=="collection_title")  %>% 
-  select(src_subject_id,interview_age, eventname, nihtbx_fluidcomp_agecorrected, nihtbx_cryst_agecorrected, nihtbx_totalcomp_agecorrected, nihtbx_totalcomp_rawscore, nihtbx_totalcomp_cs, nihtbx_totalcomp_itmcnt) %>% 
-  mutate_at(c(2, 4:9), as.numeric)
+  select(src_subject_id,interview_age, eventname, nihtbx_fluidcomp_agecorrected, nihtbx_cryst_agecorrected, nihtbx_totalcomp_agecorrected, nihtbx_totalcomp_uncorrected) %>% 
+  mutate_at(c(2, 4:7), as.numeric)
 
 #nihtbx_totalcomp_rawscore total cognition raw score
 #nihtbx_totalcomp_cs total cognition computed score
 #	nihtbx_totalcomp_itmcnt cognition total composite item count
 # might need to adjust for tasks completed?
 
-social <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_gish2y01.txt") %>%
+gish <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_gish2y01.txt") %>%
   filter(!collection_title=="collection_title")  %>% 
-  select(-c(subjectkey, interview_date, interview_age, gish2_device)) %>% 
-  mutate_at(c(4:16), as.numeric)
+  filter(eventname == "2_year_follow_up_y_arm_1") %>% 
+   select(src_subject_id, sex, contains("gish2")) %>% 
+  select(-c(gish2_device, abcd_gish2y01_id))%>% 
+  mutate_at(c(3:15), as.numeric) 
 
 #calculate gish score
 ```
@@ -575,13 +582,15 @@ youth_pds_multiwave <- youth_pds %>%
                          sex == "F" ~ #female
                            (pds_ht2_y + pds_bdyhair_y + pds_skin2_y + pds_f4_2_y + pds_f5_y))) %>% 
   mutate(youth_mean = youth_sum/5)  %>% 
-  select(src_subject_id, sex, youth_sum, youth_mean)
+  select(src_subject_id, eventname, sex, youth_sum, youth_mean)
 
 youth_pds_baseline <- youth_pds_multiwave %>% 
-  filter(eventname == "baseline_year_1_arm_1") 
+  filter(eventname == "baseline_year_1_arm_1") %>% 
+  select(-eventname)
   
 youth_pds_followup <- youth_pds_multiwave %>% 
-  filter(eventname == "2_year_follow_up_y_arm_1") 
+  filter(eventname == "2_year_follow_up_y_arm_1") %>% 
+  select(-eventname)
   
 
 
@@ -590,8 +599,6 @@ parent_pds[parent_pds == 777] <- NA
 parent_pds[parent_pds == 999] <- NA
 
 #Baseline
-
-
 parent_pds_multiwave <- parent_pds %>% 
     filter(eventname == "baseline_year_1_arm_1" | eventname == "2_year_follow_up_y_arm_1") %>% 
     mutate(parent_sum = case_when(sex == "M" ~ #male
@@ -599,30 +606,45 @@ parent_pds_multiwave <- parent_pds %>%
                          sex == "F" ~ #female
                            (pds_1_p + pds_2_p + pds_3_p + pds_f4_p + pds_f5b_p))) %>% 
   mutate(parent_mean = parent_sum/5) %>% 
-  select(src_subject_id, sex, parent_sum, parent_mean)
+  select(src_subject_id, eventname, sex, parent_sum, parent_mean)
 
 
 parent_pds_baseline <- parent_pds_multiwave %>% 
-    filter(eventname == "baseline_year_1_arm_1")
+    filter(eventname == "baseline_year_1_arm_1") %>% 
+  select(-eventname)
 
 
 parent_pds_followup <- parent_pds_multiwave%>% 
-    filter(eventname == "2_year_follow_up_y_arm_1")
+    filter(eventname == "2_year_follow_up_y_arm_1")%>% 
+  select(-eventname)
 
 
 #### Cognition
 
 #Baseline
 cognition_baseline <- cognition %>% 
-  filter(eventname == "baseline_year_1_arm_1") 
+  filter(eventname == "baseline_year_1_arm_1") %>% 
+  select(-eventname) %>%
+  mutate(cog_zscore = scale(nihtbx_totalcomp_uncorrected))
 
 #Follow-Up
 cognition_followup <- cognition %>% 
-  filter(eventname == "2_year_follow_up_y_arm_1")
+  filter(eventname == "2_year_follow_up_y_arm_1")%>% 
+  select(-eventname)
 
 #Multiwave
 cognition_multiwave <- cognition %>% 
   filter(eventname == "baseline_year_1_arm_1" | eventname == "2_year_follow_up_y_arm_1")
+
+
+#Social/GISH
+gish[gish== 777] <- NA
+gish[gish == 999] <- NA
+
+# sum scores
+gish %>% 
+  mutate(gishSum = rowSums(across(c(3:15)), na.rm=T))
+
 ```
 
 Add age to brainAGE estimates
@@ -633,8 +655,8 @@ corrected_followup_brainage <- brain_age_corrected_df_followup
 corrected_baseline_brainage$src_subject_id <- smri_baseline$src_subject_id
 
 corrected_followup_brainage$src_subject_id <- smri_followup$src_subject_id
-
 ```
+
 
 Split Samples for Analysis
 ```{r}
@@ -690,6 +712,39 @@ t.test(sample_1_followup$interview_age, sample_2_followup$interview_age)
 save(brainage_pds_followup, file="BrainagePDSFollowUp.Rda")
 save(sample_1_followup, file="Sample1FollowUp.Rda")
 save(sample_2_followup, file = "Sample2FollowUp.Rda")
+
+
+#Add Gish to follow-up
+```
+
+Attach maturity variables to ABCD model estimates
+```{r}
+abcd_brainage_baseline <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/ABCDBaselineBrainAgeCorrected.Rda")
+abcd_brainage_baseline$src_subject_id <- sample_2_baseline$src_subject_id
+
+abcd_brainage_baseline <- abcd_brainage_baseline[, c(6,1:5)]
+
+
+abcd_baseline <- sample_2_baseline %>% 
+  select(1, 7:17)
+
+abcd_baseline <- left_join(abcd_baseline, abcd_brainage_baseline)
+
+save(abcd_baseline, file="ABCDBaselineSample.Rda")
+
+#double check that sample 2s remain consistent
+
+abcd_baseline_ids <- abcd_brainage_baseline$src_subject_id
+
+og_sample_2 <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/fyp_old/Sample2Baseline.Rda")
+og_sample_2_ids <- og_sample_2$src_subject_id
+
+id_compare<-data.frame(abcd_baseline_ids,og_sample_2_ids)
+sum(ifelse(id_compare$abcd_baseline_ids==id_compare$og_sample_2_ids,1,0))
+
+#they're the same!
+
+
 ```
 
 #################

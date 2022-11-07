@@ -144,20 +144,85 @@ smri_difference_calculated_subset <- smri_difference_calculated %>%
   select(src_subject_id, ends_with("diff")) 
   #divide all brain columns by interview age
   
-smri_difference_calculated_scaled<- smri_difference_calculated_subset[,-(1:2)] %>% sapply(`/`, smri_difference_calculated_subset[,2]) 
 
-smri_difference_calculated_scaled$src_subject_id <- smri_difference_calculated_subset$src_subject_id
+smri_difference_calculated_subset[, -(1:2)] <- sweep(smri_difference_calculated_subset[, -(1:2)], 1, smri_difference_calculated_subset[, 2], "/")
 
-smri_difference_calculated_scaled$interview_age_diff <- smri_difference_calculated_subset$interview_age.y_diff
 
-smri_difference_calculated_scaled <- smri_difference_calculated_scaled
-select(src_subject_id, interview_age_diff, everything())
+# testing
+#difference_df_scaled<- difference_df[,-(1:2)] %>% sapply(`/`, difference_df[,2]) 
+
+#smri_difference_calculated_scaled<- smri_difference_calculated_subset[,-(1:2)] %>% sapply(`/`, smri_difference_calculated_subset[,2]) 
+#try lapply instead
+
+#difference_df_scaled<- difference_df %>%  
+#  mutate(across(everything(), -c(difference1, difference2) ~ . / !! difference2))
+
+#difference_df_scaled<- difference_df %>% 
+ # mutate(across(!difference1 & !difference2), ~ . / !! difference2)
+
+#difference_df_scaled<- difference_df %>% 
+ # mutate(across(.cols = -c(difference1, difference2), . / difference2(., na.rm = FALSE)))
+
+#difference_df_scaled<- difference_df %>%
+#  mutate_at(vars(-difference1 -difference2),
+  #          ~ . / !! difference2
+#  )
+
+#difference_df_scale <- difference_df
+#difference_df_scale[, -(1:2)] <- sweep(difference_df_scale[, -(1:2)], 1, difference_df_scale[, 2], "/")
+
+####
+
+#smri_difference_calculated_scaled$src_subject_id <- smri_difference_calculated_subset$src_subject_id
+
+#smri_difference_calculated_scaled$interview_age_diff <- smri_difference_calculated_subset$interview_age.y_diff
 
 
 # Should we be predicting the change in age?
-set.seed(42)
-smri_difference_calculated <- smri_difference_calculated %>% 
-#split for testing
-select(-c(src_subject_id))
+
+#probably filter out people w/o age_diff scores
+smri_difference_calculated_filtered <- smri_difference_calculated_subset %>% 
+  filter(!is.na(interview_age.y_diff))
+  
+#calculate midpoint age, use change scores to predict midpoint
+smri_difference_calculated_filtered <- smri_difference_calculated_filtered %>% 
+  left_join(smri_difference %>%  select(src_subject_id, interview_age.x, interview_age.y)) %>% 
+  rowwise() %>% 
+  mutate(age_midpoint = mean(c(interview_age.x, interview_age.y))) %>% 
+  ungroup()
+
+smri_difference_calculated_filtered <- smri_difference_calculated_filtered %>% 
+  ungroup()
+
+save(smri_difference_calculated_filtered, file="smri_difference_scores.Rda")
+
+# select just subject_id, brain columns, age midpoint
+
+#load("smri_difference_scores.Rda")
+
+
+
+
+#1000 people for training
+
+#Split sample
+smp_size_diff <- floor(0.13 * nrow(smri_difference_calculated_filtered)) #training sample of 1000 participants 
+
+## set the seed to make your partition reproducible
+set.seed(123)
+sample_ind_diff <- sample(seq_len(nrow(smri_difference_calculated_filtered)), size = smp_size_diff)
+
+sample_train_diff <- smri_difference_calculated_filtered[sample_ind_diff, ]
+sample_test_diff <- smri_difference_calculated_filtered[-sample_ind_diff, ]
+
+# select just subject_id, brain columns, age midpoint
+sample_train_diff <- sample_train_diff %>% 
+select(-c(src_subject_id, interview_age.y_diff, interview_age.x, interview_age.y))
+
+
+save(sample_train_diff, file="sample_train_diff.Rda")
+save(sample_test_diff, file="sample_test_diff.Rda")
+
+
 
 ```
