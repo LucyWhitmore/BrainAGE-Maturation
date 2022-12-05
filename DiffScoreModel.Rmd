@@ -1,0 +1,154 @@
+---
+title: "DiffScoreModel"
+author: "Lucy Whitmore"
+date: "7/14/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+packages <-  c("tidyverse",
+               "reshape2",
+               "nlme", "lme4",
+               "data.table", "psych",
+               "parallel","lubridate",
+               "ggpubr", "broom", 
+               "apaTables", "MetBrewer", "beepr", "doParallel", "tictoc", "rsample", "tidymodels")
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+lapply(packages, library, character.only = TRUE)
+
+packageUrl <- "https://cran.r-project.org/src/contrib/Archive/xgboost/xgboost_1.0.0.2.tar.gz"
+
+packageUrl <- "https://cran.r-project.org/src/contrib/Archive/xgboost/xgboost_1.5.2.1.tar.gz"
+
+
+#packageUrl <- "~/Downloads/xgboost_1.0.0.2.tar.gz"
+
+# You then install this version of the package using
+install.packages(packageUrl, repos = NULL, type = 'source')
+```
+
+Load data
+```{r}
+#load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/sample_test_diff.Rda")
+#load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/sample_train_diff.Rda")
+
+
+load("~/Documents/FYP/sample_test_diff.Rda")
+load("~/Documents/FYP/sample_train_diff.Rda")
+```
+
+Load model
+```{r}
+#abcd_brainage_diff_model <- readRDS("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/xgboost_abcd_diff_brain_age_mod.rds")
+
+abcd_brainage_diff_model <- xgboost::xgb.load(readRDS("xgboost_abcd_diff_brain_age_mod"))
+
+
+#abcd_brainage_diff_model_complete <- xgb.Booster.complete(abcd_brainage_diff_model)
+
+#abcd_brainage_multiwave_model <- readRDS("~/Documents/FYP/xgboost_abcd_multiwave_brain_age_mod.rds")
+
+
+#xgboost::xgb.load(readRDS("xgboost_abcd_diff_brain_age_mod.rds"))
+
+#xgboost::xgb.load(readRDS("xgboost_abcd_multiwave_brain_age_mod.rds"))
+
+```
+
+Predict Brain Age (baseline)
+```{r}
+sample_test_diff <- sample_test_diff %>% 
+  select(-c(src_subject_id, interview_age.y_diff, interview_age.x, interview_age.y))
+
+brain_age_df_diff <- abcd_brainage_diff_model %>%
+  predict(new_data = sample_test_diff) %>%
+  mutate(
+    # provide the chronological age at time of scan
+    truth = sample_test_diff$age_midpoint
+  ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+
+```
+
+Evaluate accuracy
+```{r}
+# compute common performance metrics: mae, rsq, rmse
+brain_age_df_diff  %>%
+  metrics(truth = truth, estimate = .pred)
+
+```
+
+Optional bias correction
+```{r}
+# bias prediction method, steps in comments,
+# previously determined values hardcoded.
+
+
+#get validation set
+set.seed(42)
+df_split_diff <- initial_split(
+  sample_train_diff, 
+  prop = 0.80,
+  # matching age distributions across train and test set
+  strata = "interview_age"
+)
+
+df_train_diff <- training(df_split_diff)
+df_validation_diff <- testing(df_split_diff)
+
+describe(df_train_diff)
+describe(df_validation_diff)
+
+
+#think I need to now run model on validation set??
+abcd_brain_age_correction_diff <-
+  abcd_brainage_diff_model %>%
+  predict(new_data = df_validation_diff) %>%
+  mutate(
+    # provide the chronological age at time of scan
+    truth = df_validation_baseline$interview_age
+  ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+
+#get MAE for hold-out 
+abcd_brain_age_correction_diff %>%
+  metrics(truth = truth, estimate = .pred)
+
+abcd_bias_mod_diff <- lm(.pred ~ truth, data = abcd_brain_age_correction_diff)
+
+# extract intercept and slope
+#abcd_bias_mod_diffcoefficients[["(Intercept)"]]
+abcd_bias_intercept_diff <- 
+#abcd_bias_mod_diff$coefficients[["truth"]]
+abcd_bias_slope_diff <-  
+
+# create bias correct data frame
+#Baseline
+brain_age_corrected_df_diff <- brain_age_df_diff %>%
+  mutate(
+    # corrected brain age prediction
+    corrected_pred =  (.pred - abcd_bias_intercept_diff) / abcd_bias_slope_diff
+  ) %>%
+  # corrected corrected brain age gap
+  mutate(corrected_gap = corrected_pred - truth)
+
+
+#mine
+brain_age_corrected_df_diff %>%
+  metrics(truth = truth, estimate = .pred)
+
+brain_age_corrected_df_diff %>%
+  metrics(truth = truth, estimate = corrected_pred)
+
+
+save(brain_age_df_diff, file="ABCDBaselineBrainAge.Rda")
+save(brain_age_corrected_df_diff, file="ABCDBaselineBrainAgeCorrected.Rda")
+
+
+```

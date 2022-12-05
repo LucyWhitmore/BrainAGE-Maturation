@@ -292,7 +292,7 @@ Red/Yellow for m2 baseline
 
 3 plots: youth-report puberty, parent-report puberty, cognition
 ```{r}
-#Youth-Report Puberty
+
 #make categorical variable for puberty
 #age-corrected cognition: These are presented as Standard Scores (mean=100, SD=15).
 categorical_pds_baseline <-  brainage_pds_baseline %>% 
@@ -303,21 +303,21 @@ categorical_pds_baseline <-  brainage_pds_baseline %>%
          cog_quart = cut(nihtbx_totalcomp_uncorrected, quantile(nihtbx_totalcomp_uncorrected, na.rm=T), labels=c("0-25", "25-50", "50-75", "75-100")))
 #don't z-score, include more than 1 standard deviation and less than 1 standard deviation (ignore within 1 SD)
 
-
-ggpar((categorical_pds_baseline %>% 
+#Youth-Report Puberty
+youth_pds_baseline_mod1_plot <- ggpar((categorical_pds_baseline %>% 
   filter(!is.na(youth_pds_cat)) %>% 
   ggdensity(x = "corrected_gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean", palette = c('#3E502A','#7CA352','#A1C181', '#CCDDBB'))),  #,'#526D37'
-  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS") +
-  theme(text = element_text(size = 24)) 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS", font.legend = 8) +
+  theme(text = element_text(size = 12)) 
 ggsave(filename="baseline_youth_pds_mod1.png",
                           width=7, height=4, units='in', dpi=300)
 
 #Parent-Report Puberty
-ggpar((categorical_pds_baseline %>% 
+parent_pds_baseline_mod1_plot <- ggpar((categorical_pds_baseline %>% 
   filter(!is.na(parent_pds_cat)) %>% 
 ggdensity(x = "corrected_gap", color= "parent_pds_cat", fill= "parent_pds_cat", add="mean", palette = c('#3E502A','#7CA352','#A1C181', '#CCDDBB'))), 
-  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS") +
-  theme(text = element_text(size = 24)) 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS", font.legend = 8) +
+  theme(text = element_text(size = 12)) 
 ggsave(filename="baseline_parent_pds_mod1.png",
                           width=7, height=4, units='in', dpi=300)
 
@@ -339,16 +339,22 @@ ggpar((categorical_pds_baseline %>%
 
 
 #Cognition Quartiles
-ggpar((categorical_pds_baseline %>% 
+cog_baseline_mod1_plot <- ggpar((categorical_pds_baseline %>% 
   filter(!is.na(cog_quart) & cog_quart!="25-50" & cog_quart!="50-75" ) %>% 
   ggdensity(x = "corrected_gap", color= "cog_quart", fill="cog_quart", add="mean", palette = c('#7CA352',
- '#CCDDBB'))), xlab="Brain Age Gap", ylab="Density", legend.title = "Cognition (Quartiles)")  +
-  theme(text = element_text(size = 24)) 
+ '#CCDDBB'))), xlab="Brain Age Gap", ylab="Density", legend.title = "Cognition (Quartiles)", font.legend = 8)  +
+  theme(text = element_text(size = 12)) 
+
 ggsave(filename="baseline_cognition_mod1.png",
                           width=7, height=4, units='in', dpi=300)
 
 
+ggarrange(youth_pds_baseline_mod1_plot, parent_pds_baseline_mod1_plot, cog_baseline_mod1_plot, 
+          labels = c("A", "B", "C"),
+          ncol = 2, nrow = 2)
 
+ggsave(filename = "distributions_baseline_mod1.png",
+                          width=7, height=5, units='in', dpi=300)
 
 ```
 
@@ -502,13 +508,13 @@ Scatterplot of scan age/chronological age vs predicted age
 #subsample data
 #sample_n()
 
-ggplot(brainage_pds_baseline, aes(x=truth, y=corrected_pred)) + 
+baseline_pred_mod1_plot <- ggplot(brainage_pds_baseline, aes(x=truth, y=corrected_pred)) + 
   geom_jitter(color="#A1C181")+
   geom_abline(a=0, b=1, color='#233D4D') +
   #geom_smooth(method=lm, color='#233D4D') +
-  labs(x = "Scan/Chronological Age", y ="Predicted Age", title = "Age v Pred Age - Model 1 (Baseline)") +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
   theme_classic() + 
-  theme(text = element_text(size = 22))  
+  theme(text = element_text(size = 14))  
 ggsave(filename="baseline_truth_corrected_pred_mod1.png",
                           width=7, height=4, units='in', dpi=300)
 
@@ -531,14 +537,22 @@ ggscatter(brainage_pds_baseline, x = "truth", y = "corrected_gap",
                      labels = c(-5, -2.5, 0, 2.5, 5))
 
 
-ggplot(brainage_pds_baseline, aes(x=truth, y=corrected_gap)) + 
+baseline_gap_mod1_plot <- ggplot(brainage_pds_baseline, aes(x=truth, y=corrected_gap)) + 
   geom_jitter(color="#A1C181")+
   geom_smooth(method=lm, color='#233D4D') +
-  labs(x = "Scan/Chronological Age", y ="Corrected Gap", title = "Age Bias - Model 1 (Baseline)") +
+  labs(x = "Scan/Chronological Age", y ="Corrected Gap") +
   theme_classic() + 
-  theme(text = element_text(size = 22))  
+  theme(text = element_text(size = 14))  
 ggsave(filename="baseline_truth_corrected_gap_mod1.png",
                           width=7, height=4, units='in', dpi=300)
+
+
+ggarrange(baseline_pred_mod1_plot, baseline_gap_mod1_plot, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+
+ggsave(filename = "pred_bias_baseline_mod1.png",
+                          width=10, height=5, units='in', dpi=300)
 ```
 
 
@@ -568,24 +582,24 @@ ggpar((corrected_followup_brainage %>%
 
 # Actual vs Corrected Predictions, w/ perfect correlation line
 
-ggplot(brainage_pds_followup, aes(x=truth, y=corrected_pred)) + 
+followup_pred_mod1_plot <- ggplot(brainage_pds_followup, aes(x=truth, y=corrected_pred)) + 
   geom_jitter(color="#619B8A")+
   geom_abline(a=0, b=1, color='#233D4D') +
-  labs(x = "Scan/Chronological Age", y ="Predicted Age", title = "Age v Pred Age - Model 1 (Follow-Up)") +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
   theme_classic() + 
-  theme(text = element_text(size = 22))  
+  theme(text = element_text(size = 14))  
 ggsave(filename="followup_truth_corrected_pred_mod1.png",
                           width=7, height=4, units='in', dpi=300)
 
 
 
 # Age Bias - truth vs corrected gap
-ggplot(brainage_pds_followup, aes(x=truth, y=corrected_gap)) + 
+followup_gap_mod1_plot <- ggplot(brainage_pds_followup, aes(x=truth, y=corrected_gap)) + 
   geom_jitter(color="#619B8A")+
   geom_smooth(method=lm, color='#233D4D') +
-  labs(x = "Scan/Chronological Age", y ="Corrected Gap", title = "Age Bias - Model 1 (Follow-Up)") +
+  labs(x = "Scan/Chronological Age", y ="Corrected Gap") +
   theme_classic() + 
-  theme(text = element_text(size = 22))  
+  theme(text = element_text(size = 14))  
 ggsave(filename="followup_truth_corrected_gap_mod1.png",
                           width=7, height=4, units='in', dpi=300)
 
@@ -595,6 +609,15 @@ ggscatter(corrected_followup_brainage, x = "truth", y = "gap",
    add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
    conf.int = TRUE # Add confidence interval
    )
+
+
+#Panel Plots
+ggarrange(baseline_pred_mod1_plot, baseline_gap_mod1_plot, followup_pred_mod1_plot, followup_gap_mod1_plot, 
+          labels = c("A", "B", "C", "D"),
+          ncol = 2, nrow = 2)
+
+ggsave(filename = "pred_bias_mod1.png",
+                          width=10, height=10, units='in', dpi=300)
 
 
 #Fit Metrics
@@ -620,6 +643,9 @@ brain_age_corrected_df_followup %>%
 #follow-up corrected
 brain_age_corrected_df_followup%>%
   metrics(truth = truth, estimate = corrected_pred)
+
+
+
 
 
 ```
@@ -679,24 +705,32 @@ categorical_pds_followup <-  brainage_pds_followup %>%
 #don't z-score, include more than 1 standard deviation and less than 1 standard deviation (ignore within 1 SD)
 
 
-ggpar((categorical_pds_followup %>% 
+youth_pds_followup_mod1_plot <- ggpar((categorical_pds_followup %>% 
   filter(!is.na(youth_pds_cat)) %>% 
   ggdensity(x = "corrected_gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean", palette=c('#B4D0C7','#82B0A2', '#619B8A', '#568A7B'))), 
-  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS")  +
-  theme(text = element_text(size = 24)) 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS", font.legend=8)  +
+  theme(text = element_text(size = 12)) 
 
 ggsave(filename="followup_youth_pds_mod1.png",
                           width=7, height=4, units='in', dpi=300)
 
 #Parent-Report Puberty
-ggpar((categorical_pds_followup %>% 
+parent_pds_followup_mod1_plot <-ggpar((categorical_pds_followup %>% 
   filter(!is.na(parent_pds_cat)) %>% 
 ggdensity(x = "corrected_gap", color= "parent_pds_cat", fill= "parent_pds_cat", add="mean", palette=c('#B4D0C7','#82B0A2', '#619B8A', '#568A7B'))), 
-  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS")  +
-  theme(text = element_text(size = 24)) 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS", font.legend=8)  +
+  theme(text = element_text(size = 12)) 
 
 ggsave(filename="followup_parent_pds_mod1.png",
                           width=7, height=4, units='in', dpi=300)
+
+
+ggarrange(youth_pds_followup_mod1_plot, parent_pds_followup_mod1_plot, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+ggsave(filename = "distributions_followup_mod1.png",
+                          width=10, height=4, units='in', dpi=300)
+
 ```
 
 Uncorrected version
@@ -909,28 +943,35 @@ ggscatter(abcd_brainage_baseline, x = "truth", y = "gap",
 
 # Actual vs Corrected Predictions, w/ perfect correlation line
 
-ggplot(abcd_brainage_baseline, aes(x=truth, y=corrected_pred)) + 
+baseline_pred_mod2_plot <- ggplot(abcd_brainage_baseline, aes(x=truth, y=corrected_pred)) + 
   geom_jitter(color="#E76F51")+
   geom_abline(a=0, b=1, color='#233D4D') +
-  labs(x = "Scan/Chronological Age", y ="Predicted Age", title = "Age v Pred Age - Model 2 (Baseline)") +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
   theme_classic() + 
-  theme(text = element_text(size = 22))  
+  theme(text = element_text(size = 12))  
 ggsave(filename="baseline_truth_corrected_pred_mod2.png",
                           width=7, height=4, units='in', dpi=300)
 
 
 
 # Age Bias - truth vs corrected gap
-ggplot(abcd_brainage_baseline, aes(x=truth, y=corrected_gap)) + 
+baseline_gap_mod2_plot <- ggplot(abcd_brainage_baseline, aes(x=truth, y=corrected_gap)) + 
   geom_jitter(color="#E76F51")+
   geom_smooth(method=lm, color='#233D4D') +
-  labs(x = "Scan/Chronological Age", y ="Corrected Gap", title = "Age Bias - Model 2 (Baseline)") +
+  labs(x = "Scan/Chronological Age", y ="Corrected Gap") +
   theme_classic() + 
-  theme(text = element_text(size = 22))  
+  theme(text = element_text(size = 12))  
 ggsave(filename="baseline_truth_corrected_gap_mod2.png",
                           width=7, height=4, units='in', dpi=300)
 
 
+#Panel Plots
+ggarrange(baseline_pred_mod2_plot, baseline_gap_mod2_plot,
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+
+ggsave(filename = "pred_bias_mod2.png",
+                          width=10, height=5, units='in', dpi=300)
 
 
 hist(abcd_brainage_baseline$truth)
@@ -950,14 +991,22 @@ stacked bar plot with right hemisphere followed by left hemisphere where applica
 vip package
 ```{r}
 # Calculate variables of importance
-abcd_vi <- vi(abcd_model_5_9) #xgb_final_mod, xgboost_abcd_brain_age_mod
-abcd_vi
+#abcd_vi <- vi(abcd_model_5_9) #xgb_final_mod, xgboost_abcd_brain_age_mod
+#abcd_vi
 
-abcd_vi <- vi(abcd_model_59) #xgb_final_mod, xgboost_abcd_brain_age_mod
-abcd_vi
+#abcd_vi <- vi(abcd_model_59) #xgb_final_mod, xgboost_abcd_brain_age_mod
+#abcd_vi
 
-xgboost::xgb.importance(model=abcd_model_5_9)
+#xgboost::xgb.importance(model=abcd_brainage_model)
+#xgboost::xgb.importance(model=abcd_vi)
 
+abcd_brainage_model <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/xgboost_abcd_brain_age_mod_5_9.rds") 
+
+
+#This works!
+#abcd_vi <- vi(abcd_brainage_model) #xgb_final_mod, xgboost_abcd_brain_age_mod
+#abcd_vi
+#write_csv(abcd_vi, "abcd_vi.csv")
 
 
 vip(abcd_model_5_9, num_features = 20)  +
@@ -966,31 +1015,99 @@ vip(abcd_model_5_9, num_features = 20)  +
 vip(abcd_model_59, num_features = 20)  +
   theme_light()
 
+vip(abcd_brainage_model, num_features = 20)
+ggsave(filename="abcd_model_vip.png",
+                          width=7, height=4, units='in', dpi=300)
+
 #Subset so that we don't have to rename all?
 
 # Rename columns to fit with ggseg atlas (ugghhh)
 
-brain_regions(dk)
-brain_labels(dk)
+abcd_vi_renamed <- rio::import("~/Documents/FYP/abcd_vi_renamed.csv")
+abcd_vi_renamed_dk <- rio::import("~/Documents/FYP/abcd_vi_renamed_dk.csv")
 
+#check labels
+brain_labels(dk)
 brain_labels(aseg)
 
-ggseg(abcd_vi)
+
+#Cortical - Volume
+dk_vi_vol <- abcd_vi_renamed_dk %>%
+  filter(grepl('Vol', Variable)) %>% 
+  filter(label != "") %>% 
+  select(Importance,label)
+
+dk_vi_vol <- data.frame(dk_vi_vol)
+
+ggplot(dk_vi_vol) +
+  geom_brain(atlas = dk, position = position_brain(hemi ~ side), aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
+  labs(title = "Cortical Volume")
+ggsave(filename="abcd_model_dk_vol_importance.png",
+                         width=8, height=4, units='in', dpi=300)
 
 
-#Actually plot
-#Cortical
-abcd_vi %>%
-  ggplot() +
-  geom_brain(atlas = dk, 
-             position = position_brain(hemi ~ side),
-             aes(fill = Importance))
+#Cortical - Area
+dk_vi_area <- abcd_vi_renamed_dk %>%
+  filter(grepl('Area', Variable)) %>% 
+  filter(label != "") %>% 
+  select(Importance,label)
+
+dk_vi_area <- data.frame(dk_vi_area)
+
+ggplot(dk_vi_area) +
+  geom_brain(atlas = dk, position = position_brain(hemi ~ side), aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
+  labs(title = "Cortical Area")
+ggsave(filename="abcd_model_dk_area_importance.png",
+                         width=8, height=4, units='in', dpi=300)
+
+
+
+
 #Subcortical
-abcd_vi %>%
-  ggplot() +
-  geom_brain(atlas = aseg, 
-             position = position_brain(hemi ~ side),
-             aes(fill = Importance))
+aseg_vi <- abcd_vi_renamed %>%
+  filter(label != "") %>% 
+  select(Importance,label)
+  
+aseg_vi <- data.frame(aseg_vi)
+  
+ggplot(aseg_vi) +
+  geom_brain(atlas = aseg, side="coronal", aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51')
+ggsave(filename="abcd_model_aseg_importance_coronal.png",
+                          width=7, height=4, units='in', dpi=300)
+
+
+ggplot(aseg_vi) +
+  geom_brain(atlas = aseg, side="sagittal", aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51')
+ggsave(filename="abcd_model_aseg_importance_sagittal.png",
+                          width=7, height=4, units='in', dpi=300)
+
+
+#troubleshooting names
+aseg_labs <- brain_labels(aseg) |> 
+  as.character()
+aseg_vi$label[!aseg_vi$label %in% aseg_labs]
+aseg_labs[!aseg_labs %in% aseg_vi$label]
+
+
+
+dk_labs <- brain_labels(dk) |> 
+  as.character()
+dk_vi_area$label[!dk_vi_area$label %in% dk_labs]
+dk_vi_vol$label[!dk_vi_vol$label %in% dk_labs]
+
+
+dk_labs[!dk_labs %in% dk_vi_area$label]
+dk_labs[!dk_labs %in% dk_vi_vol$label]
+
+#'#FCCA46','#F3B5A5', '#E76F51', '#B43718'
 ```
 
 
@@ -1072,21 +1189,22 @@ abcd_baseline_categorical_pds <- abcd_baseline %>%
 #don't z-score, include more than 1 standard deviation and less than 1 standard deviation (ignore within 1 SD)
 
 #Youth-report puberty
-ggpar((abcd_baseline_categorical_pds %>% 
+youth_pds_baseline_mod2_plot <- ggpar((abcd_baseline_categorical_pds %>% 
   filter(!is.na(youth_pds_cat)) %>% 
   ggdensity(x = "corrected_gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean", palette=c('#FCCA46','#F3B5A5', '#E76F51', '#B43718'))), 
-  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS")  +
-  theme(text = element_text(size = 24)) 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS",  font.legend = 8)  +
+  theme(text = element_text(size = 12)) 
 
 ggsave(filename="baseline_youth_pds_mod2.png",
                           width=7, height=4, units='in', dpi=300)
 
 #Parent-Report Puberty
-ggpar((abcd_baseline_categorical_pds %>% 
+parent_pds_baseline_mod2_plot <- ggpar((abcd_baseline_categorical_pds %>% 
   filter(!is.na(parent_pds_cat)) %>% 
 ggdensity(x = "corrected_gap", color= "parent_pds_cat", fill= "parent_pds_cat", add="mean", palette=c('#FCCA46','#F3B5A5', '#E76F51', '#B43718'))), 
-  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS")  +
-  theme(text = element_text(size = 24)) 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS", font.legend = 8)  +
+  theme(text = element_text(size = 12)) 
+
 ggsave(filename="baseline_parent_pds_mod2.png",
                           width=7, height=4, units='in', dpi=300)
 
@@ -1102,14 +1220,22 @@ ggpar((abcd_baseline_categorical_pds %>%
   theme(text = element_text(size = 24)) 
 
 #Cognition Quartiles
-ggpar((abcd_baseline_categorical_pds %>% 
+cog_baseline_mod2_plot <- ggpar((abcd_baseline_categorical_pds %>% 
   filter(!is.na(cog_quart) & cog_quart!="25-50" & cog_quart!="50-75" ) %>% 
   ggdensity(x = "corrected_gap", color= "cog_quart", fill="cog_quart", add="mean", palette = c('#FCCA46',
- '#E76F51'))), xlab="Brain Age Gap", ylab="Density", legend.title = "Cognition (Quartiles)")  +
-  theme(text = element_text(size = 24)) 
+ '#E76F51'))), xlab="Brain Age Gap", ylab="Density", legend.title = "Cognition (Quartiles)", font.legend = 8)  +
+  theme(text = element_text(size = 12)) 
+  
 ggsave(filename="baseline_cognition_mod2.png",
                           width=7, height=4, units='in', dpi=300)
 
+
+
+ggarrange(youth_pds_baseline_mod2_plot, parent_pds_baseline_mod2_plot, cog_baseline_mod2_plot, 
+          labels = c("A", "B", "C"),
+          ncol = 2, nrow = 2)
+ggsave(filename = "distributions_baseline_mod2.png",
+                          width=7, height=5, units='in', dpi=300)
 ```
 
 Demographics for ABCD Baseline
