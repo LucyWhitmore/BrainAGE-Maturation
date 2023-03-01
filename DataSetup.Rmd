@@ -518,14 +518,8 @@ smri_abcd_model_followup <- renamed_smri_followup[, 1:180]
 ```
 
 
-
 Load Other Variables
 ```{r}
-load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/BaselineBrainAgeCorrected.Rda")
-load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/FollowUpBrainAgeCorrected.Rda")
-
-
-
 #Puberty
 #Raw scores, youth
 youth_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ypdms01.txt") %>%
@@ -552,12 +546,12 @@ cognition <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_tbss01.tx
 #	nihtbx_totalcomp_itmcnt cognition total composite item count
 # might need to adjust for tasks completed?
 
-gish <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_gish2y01.txt") %>%
-  filter(!collection_title=="collection_title")  %>% 
-  filter(eventname == "2_year_follow_up_y_arm_1") %>% 
-   select(src_subject_id, sex, contains("gish2")) %>% 
-  select(-c(gish2_device, abcd_gish2y01_id))%>% 
-  mutate_at(c(3:15), as.numeric) 
+#gish <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_gish2y01.txt") %>%
+#  filter(!collection_title=="collection_title")  %>% 
+ # filter(eventname == "2_year_follow_up_y_arm_1") %>% 
+#   select(src_subject_id, sex, contains("gish2")) %>% 
+ # select(-c(gish2_device, abcd_gish2y01_id))%>% 
+ # mutate_at(c(3:15), as.numeric) 
 
 #calculate gish score
 ```
@@ -646,12 +640,19 @@ gish %>%
   mutate(gishSum = rowSums(across(c(3:15)), na.rm=T))
 
 ```
+**At this point, switch to the ExistingModel.Rmd file, where you can use renamed_smri_baseline and renamed_smri_followup to make predictions.**
 
-Add age to brainAGE estimates
+Add age to brainAGE estimates - Exisiting Model
 ```{r}
+#Don't need to run the load lines if you just ran ExistingModel.Rmd, these will already be loaded
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/BaselineBrainAgeCorrected.Rda")
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/FollowUpBrainAgeCorrected.Rda")
+
+#make renamed copies of predictions
 corrected_baseline_brainage <- brain_age_corrected_df_baseline
 corrected_followup_brainage <- brain_age_corrected_df_followup
 
+#add subject ids to predictions
 corrected_baseline_brainage$src_subject_id <- smri_baseline$src_subject_id
 
 corrected_followup_brainage$src_subject_id <- smri_followup$src_subject_id
@@ -714,11 +715,33 @@ save(sample_1_followup, file="Sample1FollowUp.Rda")
 save(sample_2_followup, file = "Sample2FollowUp.Rda")
 
 
-#Add Gish to follow-up
+#Add Gish to follow-up at a later date
 ```
+
+#################
+Make Dataframe for ABCD Model Training & Testing
+################
+```{r}
+
+#can run the line below if you need to reload smri_abcd_model_baseline
+#smri_abcd_model_baseline <- renamed_smri_baseline[, 1:180] 
+
+training_sample_baseline <- filter(smri_abcd_model_baseline, src_subject_id %in% sample_1_baseline$src_subject_id) %>% 
+  select(-c(subjectkey, src_subject_id, sex, eventname))
+
+analysis_sample_baseline <- filter(smri_abcd_model_baseline, src_subject_id %in% sample_2_baseline$src_subject_id)
+
+save(training_sample_baseline, file="training_sample_baseline.Rds")
+save(analysis_sample_baseline, file="analysis_sample_baseline.Rds")
+
+```
+
+
+**Switch over to ABCDModel.Rmd to get predictions from ABCD-trained model** 
 
 Attach maturity variables to ABCD model estimates
 ```{r}
+#if you just ran ABCDModel.Rmd, comment out the next line
 abcd_brainage_baseline <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/ABCDBaselineBrainAgeCorrected.Rda")
 abcd_brainage_baseline$src_subject_id <- sample_2_baseline$src_subject_id
 
@@ -733,7 +756,6 @@ abcd_baseline <- left_join(abcd_baseline, abcd_brainage_baseline)
 save(abcd_baseline, file="ABCDBaselineSample.Rda")
 
 #double check that sample 2s remain consistent
-
 abcd_baseline_ids <- abcd_brainage_baseline$src_subject_id
 
 og_sample_2 <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/fyp_old/Sample2Baseline.Rda")
@@ -747,23 +769,7 @@ sum(ifelse(id_compare$abcd_baseline_ids==id_compare$og_sample_2_ids,1,0))
 
 ```
 
-#################
-Make Dataframe for ABCD Model Training & Testing
-################
-```{r}
-
-#smri_abcd_model_baseline <- renamed_smri_baseline[, 1:180] 
-
-training_sample_baseline <- filter(smri_abcd_model_baseline, src_subject_id %in% sample_1_baseline$src_subject_id) %>% 
-  select(-c(subjectkey, src_subject_id, sex, eventname))
-
-analysis_sample_baseline <- filter(smri_abcd_model_baseline, src_subject_id %in% sample_2_baseline$src_subject_id)
-
-save(training_sample_baseline, file="training_sample_baseline.Rds")
-save(analysis_sample_baseline, file="analysis_sample_baseline.Rds")
-
-```
-
+**Below section is for future analyses**
 
 #################
 Make Dataframe of sMRI features for combined wave model

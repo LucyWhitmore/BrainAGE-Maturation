@@ -30,22 +30,22 @@ load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/BrainagePDSFollowUp.Rda")
 load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/ABCDBaselineSample.Rda")
 
 
-
+# ABCD Model Baseline BrainAGE estimates
 abcd_brainage_baseline <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/ABCDBaselineBrainAgeCorrected.Rda")
 
 #abcd_brainage_baseline <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/BaselineBrainAgeCorrected.Rda")
 
-load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/Sample1FollowUp.Rda")
-load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/Sample2FollowUp.Rda")
-
 #load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/abcd_baseline.Rda")
-load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/ABCDBaselineBrainAgeCorrected.Rda")
+#load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/ABCDBaselineBrainAgeCorrected.Rda")
+
 
 load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/FollowUpBrainAgeCorrected.Rda")
 
-
 load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/Sample1Baseline.Rda")
 load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/Sample2Baseline.Rda")
+
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/Sample1FollowUp.Rda")
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/Sample2FollowUp.Rda")
 
 
 
@@ -55,16 +55,11 @@ demographics <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/pdem02.txt"
   select(src_subject_id, contains("demo_race"), demo_ethn_v2, demo_ethn2_v2, demo_comb_income_v2)
   
   #join once by baseline IDs, then by follow-up (only recorded at one wave)
-
-
 demographics_baseline <- left_join(brainage_pds_baseline, demographics)
-
 
 demographics_followup <- left_join(brainage_pds_followup, demographics)
 
 demographics_baseline_abcdmodel <- left_join(abcd_baseline, demographics)
-
-
 
 demographics_long <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_lpds01.txt") %>%
   filter(!collection_title=="collection_title") %>% 
@@ -72,18 +67,14 @@ demographics_long <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_l
 
 demographics_baseline <- left_join(demographics_baseline, demographics_long %>% filter(eventname == "baseline_year_1_arm_1"))
 
-
 demographics_followup <- left_join(demographics_followup, demographics_long %>% filter(eventname == "2_year_follow_up_y_arm_1"))
 
 demographics_baseline_abcdmodel <- left_join(demographics_baseline_abcdmodel, demographics_long %>% filter(eventname == "baseline_year_1_arm_1"))
-
-
-
 ```
 
-# Vlad's Model, Baseline Analyses
 
-#Run Models
+**Vlad's Model, Baseline Analyses**
+Run Models
 ```{r}
 # brainage ~ youth sum
 #baseline_puberty_y_sum_1 <- lm(corrected_gap ~ youth_sum, data = sample_1)
@@ -147,8 +138,7 @@ baseline_cognition_zscore_2_m <- lm(corrected_gap ~ cog_zscore + interview_age_m
 #baseline_cognition_crystal_2 <- lm(corrected_gap ~ nihtbx_cryst_agecorrected, data=sample_2)
 ```
 
-
-## Model Summaries
+Model Summaries
 ```{r}
 summary(baseline_puberty_y_mean_1)
 summary(baseline_puberty_y_mean_2)
@@ -166,6 +156,7 @@ summary(baseline_cognition_zscore_1_m)
 summary(baseline_cognition_zscore_2_m)
 
 ```
+
 Model Summaries of Models w/ age as covariate
 ```{r}
 summary(baseline_puberty_y_mean_1_m)
@@ -181,8 +172,6 @@ summary(baseline_cognition_standard_1_m)
 summary(baseline_cognition_standard_2_m)
 
 ```
-
-
 
 Basic Prediction Plots
 ```{r}
@@ -230,10 +219,6 @@ plot_model(baseline_cognition_2_m, type="pred", terms = "nihtbx_totalcomp_agecor
 
 ```
 
-
-
-
-
 Figure 4A from vlad’s paper
 Make categorical variables for puberty/cognition just for visualization purposes
 Geom_density, fill will be different categories
@@ -260,16 +245,12 @@ Color Palettes:
 #ED865A
 #A44A3F
 
-
-
-
 Color Palettes v2
 233D4D
 E76F51
 FCCA46
 A1C181
 619B8A
-
 
 Green for M1 Baseline
 CCDDBB
@@ -278,15 +259,7 @@ A1C181
 7CA352
 526D37
 
-
-
-
-
-
-
-
 Blue for M1 Follow-Up
-
 
 Red/Yellow for m2 baseline
 
@@ -497,10 +470,7 @@ demographics_baseline %>%
 
 ```
 
-
 Figure 2
-Use subsample, otherwise it’ll look super funky
-
 Scatterplot of scan age/chronological age vs predicted age
 2 panels: 1 for validation, 1 for analysis sample
 1 or 2 extra panels for analysis sample w/ Vlad's model
@@ -509,7 +479,7 @@ Scatterplot of scan age/chronological age vs predicted age
 #sample_n()
 
 baseline_pred_mod1_plot <- ggplot(brainage_pds_baseline, aes(x=truth, y=corrected_pred)) + 
-  geom_jitter(color="#A1C181")+
+  geom_jitter(color="#A1C181", alpha=.2) +
   geom_abline(a=0, b=1, color='#233D4D') +
   #geom_smooth(method=lm, color='#233D4D') +
   labs(x = "Scan/Chronological Age", y ="Predicted Age") +
@@ -538,7 +508,7 @@ ggscatter(brainage_pds_baseline, x = "truth", y = "corrected_gap",
 
 
 baseline_gap_mod1_plot <- ggplot(brainage_pds_baseline, aes(x=truth, y=corrected_gap)) + 
-  geom_jitter(color="#A1C181")+
+  geom_jitter(color="#A1C181", alpha=.2)+
   geom_smooth(method=lm, color='#233D4D') +
   labs(x = "Scan/Chronological Age", y ="Corrected Gap") +
   theme_classic() + 
@@ -555,7 +525,6 @@ ggsave(filename = "pred_bias_baseline_mod1.png",
                           width=10, height=5, units='in', dpi=300)
 ```
 
-
 Checking Follow-up Brainage
 
 Load Data
@@ -568,6 +537,7 @@ load("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/BrainagePDSFollowUp.Rda")
 
 ```
 
+Plots
 ```{r}
 ggpar((corrected_baseline_brainage %>% 
   #filter(!is.na(youth_pds_cat)) %>% 
@@ -583,7 +553,7 @@ ggpar((corrected_followup_brainage %>%
 # Actual vs Corrected Predictions, w/ perfect correlation line
 
 followup_pred_mod1_plot <- ggplot(brainage_pds_followup, aes(x=truth, y=corrected_pred)) + 
-  geom_jitter(color="#619B8A")+
+  geom_jitter(color="#619B8A", alpha=.2)+
   geom_abline(a=0, b=1, color='#233D4D') +
   labs(x = "Scan/Chronological Age", y ="Predicted Age") +
   theme_classic() + 
@@ -595,7 +565,7 @@ ggsave(filename="followup_truth_corrected_pred_mod1.png",
 
 # Age Bias - truth vs corrected gap
 followup_gap_mod1_plot <- ggplot(brainage_pds_followup, aes(x=truth, y=corrected_gap)) + 
-  geom_jitter(color="#619B8A")+
+  geom_jitter(color="#619B8A", alpha=.2)+
   geom_smooth(method=lm, color='#233D4D') +
   labs(x = "Scan/Chronological Age", y ="Corrected Gap") +
   theme_classic() + 
@@ -618,10 +588,10 @@ ggarrange(baseline_pred_mod1_plot, baseline_gap_mod1_plot, followup_pred_mod1_pl
 
 ggsave(filename = "pred_bias_mod1.png",
                           width=10, height=10, units='in', dpi=300)
+```
 
-
-#Fit Metrics
-
+Fit Metrics
+```{r}
 #baseline uncorrected
 corrected_baseline_brainage %>%
   metrics(truth = truth, estimate = .pred)
@@ -646,13 +616,12 @@ brain_age_corrected_df_followup%>%
 
 
 
-
-
+# Correlation between gap and age
+cor(brainage_pds_baseline$truth, brainage_pds_baseline$corrected_gap)
+cor(brainage_pds_followup$truth, brainage_pds_followup$corrected_gap)
 ```
 
-
-
-### Follow-Up Analyses
+**Follow-Up Analyses**
 
 ```{r}
 #Convert ages to months
@@ -691,7 +660,6 @@ summary(followup_puberty_p_mean_2)
 summary(followup_cognition_crystal_1)
 summary(followup_cognition_crystal_2)
 ```
-
 
 # Density Plots for Follow-Up
 ```{r}
@@ -872,14 +840,13 @@ demographics_followup %>%
 
 ```
 
-##### ABCD Model #####
+**ABCD Model**
 
 Check on talapas model output
 ```{r}
 abcd_model_5_9 <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/xgboost_abcd_brain_age_mod_5_9.rds")
 
 abcd_model_5_9 <- readRDS("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/xgboost_abcd_brain_age_mod_5_9.rds")
-
 
 abcd_model_multiwave <- readRDS("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/xgboost_abcd_multiwave_brain_age_mod.rds")
 
@@ -898,17 +865,12 @@ print(config)
 
 bst <- xgboost::xgb.Booster("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/xgboost_abcd_brain_age_mod_5_9.rds")
 
-
-
 abcd_model_59 <- readRDS("~/Desktop/xgboost_abcd_brain_age_mod_5_9.rds")
-
-
-
 
 abcd_model_4_22 <- rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/xgboost_abcd_brain_age_mod.rds")
 ```
 
-Plots & Decriptives for ABCD Model
+Plots & Descriptives for ABCD Model
 ```{r}
 describe(abcd_brainage_baseline)
 #describe(abcd_brainage_baseline %>% filter(truth != 9))
@@ -923,7 +885,11 @@ abcd_brainage_baseline  %>%
   metrics(truth = truth, estimate = corrected_pred)
 
 
+# Check age v gap
+cor(abcd_baseline$truth, abcd_baseline$corrected_gap)
 
+
+# Plots
 ggscatter(abcd_brainage_baseline, x = "truth", y = ".pred",
    color = "#00AFBB", # Points color, shape and size
    add = "reg.line",  # Add regressin line
@@ -943,8 +909,8 @@ ggscatter(abcd_brainage_baseline, x = "truth", y = "gap",
 
 # Actual vs Corrected Predictions, w/ perfect correlation line
 
-baseline_pred_mod2_plot <- ggplot(abcd_brainage_baseline, aes(x=truth, y=corrected_pred)) + 
-  geom_jitter(color="#E76F51")+
+baseline_pred_mod2_plot <- ggplot(abcd_baseline, aes(x=truth, y=corrected_pred)) + 
+  geom_jitter(color="#E76F51", alpha=.25)+
   geom_abline(a=0, b=1, color='#233D4D') +
   labs(x = "Scan/Chronological Age", y ="Predicted Age") +
   theme_classic() + 
@@ -955,8 +921,8 @@ ggsave(filename="baseline_truth_corrected_pred_mod2.png",
 
 
 # Age Bias - truth vs corrected gap
-baseline_gap_mod2_plot <- ggplot(abcd_brainage_baseline, aes(x=truth, y=corrected_gap)) + 
-  geom_jitter(color="#E76F51")+
+baseline_gap_mod2_plot <- ggplot(abcd_baseline, aes(x=truth, y=corrected_gap)) + 
+  geom_jitter(color="#E76F51", alpha=.25)+
   geom_smooth(method=lm, color='#233D4D') +
   labs(x = "Scan/Chronological Age", y ="Corrected Gap") +
   theme_classic() + 
@@ -1110,8 +1076,7 @@ dk_labs[!dk_labs %in% dk_vi_vol$label]
 #'#FCCA46','#F3B5A5', '#E76F51', '#B43718'
 ```
 
-
-#### ABCD Model - Baseline
+ABCD Model - Baseline
 ```{r}
 abcd_baseline_months <- abcd_baseline %>% 
   mutate(interview_age_m = interview_age/12)
@@ -1144,28 +1109,15 @@ abcd_baseline_cognition_standard_noage <- lm(corrected_gap ~ nihtbx_totalcomp_un
 #abcd_baseline_cognition_crystal <- lm(corrected_gap ~ nihtbx_cryst_agecorrected, data=abcd_baseline_months)
 ```
 
-
-
-
-## Model Summaries
+Model Summaries
 ```{r}
 summary(abcd_baseline_puberty_y_mean)
 
-#summary(abcd_baseline_puberty_y_sum)
-
 summary(abcd_baseline_puberty_p_mean)
-
-#summary(abcd_baseline_puberty_p_sum)
-
-#summary(abcd_baseline_cognition_crystal)
-
-#summary(abcd_baseline_cognition_fluid)
 
 summary(abcd_baseline_cognition)
 
 summary(abcd_baseline_cognition_standard)
-
-
 ```
 Model Plots
 ```{r}
@@ -1174,7 +1126,7 @@ ggPredict(abcd_baseline_cognition_standard,se=TRUE)
 
 ```
 
-ABCD Baseline Model
+ABCD Baseline Model - Density Plots
 ```{r}
 #Youth-Report Puberty
 #make categorical variable for puberty
@@ -1354,7 +1306,6 @@ demographics_baseline_abcdmodel %>%
 
 ```
 
-
 Examining correlation between vlad's model and abcd model
 ```{r}
 
@@ -1393,11 +1344,126 @@ cor(model_compare$corrected_gap, model_compare$corrected_gap_abcd)
 
 ```
 
+Checking internal consistency of puberty means
+```{r}
+#Puberty
+#Raw scores, youth
+youth_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ypdms01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(5:38) %>% 
+  select(-c(interview_date, pds_remote___1, pds_remote___2, pds_remote___3, pds_remote___4, pds_device)) %>% 
+  mutate_at(c(5:28), as.numeric)
+
+#Raw scores, parent
+parent_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ppdms01.txt") %>%
+  filter(!collection_title=="collection_title")  %>% 
+  select(5:27) %>% 
+  select(-c(interview_date, pds_select_language___1)) %>% 
+  mutate_at(c(5:21), as.numeric)
+
+#two or more missing values = exclude
+#PDS mean score is a continuous value calculated by averaging across PDS items following Herting et al. (2021). Items on the PDS were considered missing if participants answered, “I don’t know” or “refuse to answer”, if the response was left blank, or if the response value was outside of the expected range (1 to 4). Participants with two or more missing answers were excluded from the PDS score calculation (following recommendations from (Herting et al., 2021)
 
 
-###########
-Combined Wave Model
-###########
+### Youth-report, removes everyone w/o complete data
+youth_pds[youth_pds == 777] <- NA
+youth_pds[youth_pds == 999] <- NA
+
+#### Parent-report, removes everyone w/o complete data
+parent_pds[parent_pds == 777] <- NA
+parent_pds[parent_pds == 999] <- NA
+
+# Calculting internal consistency
+# Use alpha output
+
+# Baseline, youth-report, male
+youth_pds %>% 
+  #filter for baseline wave, male, has BrainAGE estimate
+  filter(eventname == "baseline_year_1_arm_1", sex == "M", src_subject_id %in% brainage_pds_baseline$src_subject_id) %>% 
+  #select values being used for mean calculation (male)
+  select(c("pds_ht2_y", "pds_bdyhair_y", "pds_skin2_y","pds_m4_y","pds_m5_y")) %>% 
+  psych::omega(nfactors=3)
+
+# Baseline, youth-report, female
+youth_pds %>% 
+  #filter for baseline wave, female, has BrainAGE estimate
+  filter(eventname == "baseline_year_1_arm_1", sex == "F", src_subject_id %in% brainage_pds_baseline$src_subject_id) %>% 
+  #select values being used for mean calculation (male)
+  select(c("pds_ht2_y", "pds_bdyhair_y", "pds_skin2_y","pds_f4_2_y","pds_f5_y")) %>% 
+  psych::omega(nfactors=3)
+
+
+# Baseline, parent-report, male                           
+parent_pds %>% 
+  #filter for baseline wave, male, has BrainAGE estimate
+  filter(eventname == "baseline_year_1_arm_1", sex == "M", src_subject_id %in% brainage_pds_baseline$src_subject_id) %>% 
+  #select values being used for mean calculation (male)
+  select(c("pds_1_p", "pds_2_p", "pds_3_p", "pds_m4_p", "pds_m5_p")) %>% 
+  psych::omega(nfactors=3)
+
+
+# Baseline, parent-report, female                           
+parent_pds %>% 
+  #filter for baseline wave, female, has BrainAGE estimate
+  filter(eventname == "baseline_year_1_arm_1", sex == "F", src_subject_id %in% brainage_pds_baseline$src_subject_id) %>% 
+  #select values being used for mean calculation (male)
+  select(c("pds_1_p", "pds_2_p", "pds_3_p", "pds_f4_p", "pds_f5b_p")) %>% 
+  psych::omega(nfactors=3)
+
+
+
+# Follow-up, youth-report, male
+youth_pds %>% 
+  #filter for baseline wave, male, has BrainAGE estimate
+  filter(eventname == "2_year_follow_up_y_arm_1", sex == "M", src_subject_id %in% brainage_pds_baseline$src_subject_id) %>% 
+  #select values being used for mean calculation (male)
+  select(c("pds_ht2_y", "pds_bdyhair_y", "pds_skin2_y","pds_m4_y","pds_m5_y")) %>% 
+  psych::omega(nfactors=3)
+
+# Follow-up, youth-report, female
+youth_pds %>% 
+  #filter for baseline wave, female, has BrainAGE estimate
+  filter(eventname == "2_year_follow_up_y_arm_1", sex == "F", src_subject_id %in% brainage_pds_baseline$src_subject_id) %>% 
+  #select values being used for mean calculation (male)
+  select(c("pds_ht2_y", "pds_bdyhair_y", "pds_skin2_y","pds_f4_2_y","pds_f5_y")) %>% 
+  psych::omega(nfactors=3)
+
+
+# Follow-up, parent-report, male                           
+parent_pds %>% 
+  #filter for baseline wave, male, has BrainAGE estimate
+  filter(eventname == "2_year_follow_up_y_arm_1", sex == "M", src_subject_id %in% brainage_pds_baseline$src_subject_id) %>% 
+  #select values being used for mean calculation (male)
+  select(c("pds_1_p", "pds_2_p", "pds_3_p", "pds_m4_p", "pds_m5_p")) %>% 
+  psych::omega(nfactors=3)
+
+
+# Follow-up, parent-report, female                           
+parent_pds %>% 
+  #filter for baseline wave, female, has BrainAGE estimate
+  filter(eventname == "2_year_follow_up_y_arm_1", sex == "F", src_subject_id %in% brainage_pds_baseline$src_subject_id) %>% 
+  #select values being used for mean calculation (male)
+  select(c("pds_1_p", "pds_2_p", "pds_3_p", "pds_f4_p", "pds_f5b_p")) %>% 
+  psych::omega(nfactors=3)
+                           
+```
+
+Check correlation between youth and parent report puberty
+```{r}
+# baseline youth & parent report
+cor(brainage_pds_baseline$youth_mean, brainage_pds_baseline$parent_mean, use="complete.obs")
+
+# follow-up youth and parent report
+cor(brainage_pds_followup$youth_mean, brainage_pds_followup$parent_mean, use="complete.obs")
+
+# abcd model baseline
+cor(abcd_baseline$youth_mean, abcd_baseline$parent_mean, use="complete.obs")
+
+```
+
+
+**Combined Wave Model**
+
 ```{r}
 #Fit Metrics
 #baseline uncorrected

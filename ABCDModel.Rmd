@@ -59,7 +59,8 @@ brain_age_df_baseline <-
 ```
 
 Predict Brain Age (follow-up)
-```{r}
+(for future analyses, no current follow-model)
+```{r, eval = F}
 brain_age_df_followup <-
   xgb_mod %>%
   predict(new_data = renamed_smri_followup) %>%
@@ -76,9 +77,11 @@ Evaluate accuracy
 # compute common performance metrics: mae, rsq, rmse
 brain_age_df_baseline %>%
   metrics(truth = truth, estimate = .pred)
+```
 
-brain_age_df_followup %>%
-  metrics(truth = truth, estimate = .pred)
+```{r, eval=F}
+#brain_age_df_followup %>%
+#  metrics(truth = truth, estimate = .pred)
 ```
 
 Optional bias correction
@@ -139,13 +142,13 @@ brain_age_corrected_df_baseline <- brain_age_df_baseline %>%
   mutate(corrected_gap = corrected_pred - truth)
 
 #Follow-up
-brain_age_corrected_df_followup <- brain_age_df_followup %>%
-  mutate(
+#brain_age_corrected_df_followup <- brain_age_df_followup %>%
+#  mutate(
     # corrected brain age prediction
-    corrected_pred =  (.pred - bias_intercept) / bias_slope
-  ) %>%
+#    corrected_pred =  (.pred - bias_intercept) / bias_slope
+#  ) %>%
   # corrected corrected brain age gap
-  mutate(corrected_gap = corrected_pred - truth)
+#  mutate(corrected_gap = corrected_pred - truth)
 
 
 #mine
@@ -156,15 +159,15 @@ brain_age_corrected_df_baseline %>%
   metrics(truth = truth, estimate = corrected_pred)
 
 
-brain_age_corrected_df_followup %>%
-  metrics(truth = truth, estimate = corrected_pred)
+#brain_age_corrected_df_followup %>%
+#  metrics(truth = truth, estimate = corrected_pred)
 
 
 save(brain_age_df_baseline, file="ABCDBaselineBrainAge.Rda")
 save(brain_age_corrected_df_baseline, file="ABCDBaselineBrainAgeCorrected.Rda")
 
-save(brain_age_df_followup, file="ABCDFollowUpBrainAge.Rda")
-save(brain_age_corrected_df_followup, file="ABCDFollowUpBrainAgeCorrected.Rda")
+#save(brain_age_df_followup, file="ABCDFollowUpBrainAge.Rda")
+#save(brain_age_corrected_df_followup, file="ABCDFollowUpBrainAgeCorrected.Rda")
 
 ```
 
