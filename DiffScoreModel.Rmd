@@ -45,7 +45,13 @@ Load model
 ```{r}
 #abcd_brainage_diff_model <- readRDS("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/xgboost_abcd_diff_brain_age_mod.rds")
 
-abcd_brainage_diff_model <- xgboost::xgb.load(readRDS("xgboost_abcd_diff_brain_age_mod"))
+#abcd_brainage_diff_model <- xgboost::xgb.load(readRDS("xgboost_abcd_diff_brain_age_mod"))
+
+abcd_brainage_diff_model <- readRDS("xgboost_abcd_diff_brain_age_mod_updated.rds")
+
+#https://stackoverflow.com/questions/73506085/old-json-xgboost-model-format-will-be-discontinued-in-version-2-3-warning
+
+
 
 
 #abcd_brainage_diff_model_complete <- xgb.Booster.complete(abcd_brainage_diff_model)
@@ -111,7 +117,7 @@ abcd_brain_age_correction_diff <-
   predict(new_data = df_validation_diff) %>%
   mutate(
     # provide the chronological age at time of scan
-    truth = df_validation_baseline$interview_age
+    truth = df_validation_diff$age_midpoint
   ) %>%
   # compute the brain age gap by subtracting chronological age from prediction
   mutate(gap = .pred - truth)
@@ -123,10 +129,10 @@ abcd_brain_age_correction_diff %>%
 abcd_bias_mod_diff <- lm(.pred ~ truth, data = abcd_brain_age_correction_diff)
 
 # extract intercept and slope
-#abcd_bias_mod_diffcoefficients[["(Intercept)"]]
-abcd_bias_intercept_diff <- 
+#abcd_bias_mod_diff$coefficients[["(Intercept)"]]
+abcd_bias_intercept_diff <- 9.582399
 #abcd_bias_mod_diff$coefficients[["truth"]]
-abcd_bias_slope_diff <-  
+abcd_bias_slope_diff <-  0.1240839
 
 # create bias correct data frame
 #Baseline
@@ -147,8 +153,8 @@ brain_age_corrected_df_diff %>%
   metrics(truth = truth, estimate = corrected_pred)
 
 
-save(brain_age_df_diff, file="ABCDBaselineBrainAge.Rda")
-save(brain_age_corrected_df_diff, file="ABCDBaselineBrainAgeCorrected.Rda")
+save(brain_age_df_diff, file="ABCDBrainAgeDiff.Rda")
+save(brain_age_corrected_df_diff, file="ABCDBrainAgeDiffCorrected.Rda")
 
 
 ```
