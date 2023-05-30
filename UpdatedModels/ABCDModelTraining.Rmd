@@ -1,0 +1,289 @@
+---
+title: "Train BrainAGE with tidymodels"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 8, fig.height = 5)
+```
+
+
+```{r}
+library(tidymodels)
+library(xgboost)
+```
+
+```{r}
+load("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/training_sample_baseline.Rds")
+
+#training_subset_test <- training_sample_baseline[1:100,]
+
+
+# Model prep: split, preprocessing, CV ------------------------------------
+
+# Train / test split ------------------------------------------------------
+
+set.seed(42)
+df_split <- initial_split(
+  training_sample_baseline, 
+  prop = 0.80,
+  # matching age distributions across train and test set
+  strata = "interview_age"
+)
+df_train <- training(df_split)
+df_validation <- testing(df_split)
+
+```
+
+
+# Pre-processing setup ----------------------------------------------------
+
+```{r}
+# define (what we want to do)
+preprocess_recipe <- df_train %>%
+  # predict scan age by all brain features
+  recipe(interview_age ~ .) %>%
+  # remove near zero variance predictors
+  step_nzv(all_predictors()) %>%
+  prep() # where it all gets calculated
+
+preprocess_recipe
+
+
+# Apply pre-processing ----------------------------------------------------
+
+# juice() will work with training data, `bake()` to apply this to our test data
+
+# apply on train (gives processed value)
+df_train_prep <- juice(preprocess_recipe)
+
+# apply on validation
+df_validation_prep <- preprocess_recipe %>% bake(df_validation)
+
+```
+
+
+```{r}
+boost_mod_test <- boost_tree(
+  mode = "regression", 
+  trees = 150, 
+  tree_depth = tune(), min_n = tune(), loss_reduction = tune(),
+  # randomness
+  sample_size = tune(), mtry = tune(), 
+  # step size
+  learn_rate = tune()
+) %>%
+  set_engine("xgboost", 
+             objective = "reg:squarederror")
+
+```
+
+
+```{r}
+set.seed(42)
+
+xgboost_grid_test <- grid_latin_hypercube(
+  min_n(), 
+  tree_depth(), 
+  loss_reduction(),
+  sample_size = sample_prop(),
+  # has unknown, finalize with data to find max
+  finalize(mtry(), df_train_prep),
+  learn_rate(),
+  size = 500 
+)
+
+```
+
+```{r}
+xgb_wf <- workflow() %>%
+  add_formula(interview_age ~ .) %>%
+  add_model(boost_mod_test)
+
+xgb_wf
+```
+
+
+```{r}
+set.seed(42)
+
+train_cv <- df_train_prep %>%
+  vfold_cv(
+    v = 10, 
+    repeats = 10, 
+    strata = interview_age
+  )
+```
+
+```{r}
+doParallel::registerDoParallel()
+
+set.seed(42)
+
+xgb_tuned_results_test <- tune_grid(
+  xgb_wf,
+  resamples = train_cv,
+  grid = xgboost_grid_test,
+  metrics = metric_set(mae, rmse, rsq),
+  control = control_grid(verbose = TRUE,
+                         save_pred = TRUE)
+)
+
+xgb_tuned_results_test
+```
+
+```{r}
+xgb_tuned_results_test %>%
+  # want to minimize MAE
+  show_best("mae") 
+
+# select parsimonious params within one SE of best model
+best_xgb_params_test <- xgb_tuned_results_test %>%
+  select_by_one_std_err(metric = "mae", maximize = FALSE, tree_depth) 
+
+```
+
+Finalize workflow and fit final model
+```{r}
+final_xgb <- finalize_workflow(
+  xgb_wf,
+  best_xgb_params_test
+)
+
+final_xgb
+
+fit_workflow <- fit(final_xgb, df_train_prep)
+
+
+#xgb_final_mod_test <- boost_mod_test %>%
+ # finalize_model(best_xgb_params_test) %>%
+ # fit(interview_age ~ .,
+#      data = df_train_prep)
+
+```
+
+Variable importance, ignore
+```{r}
+library(vip)
+
+final_xgb %>%
+  fit(data = df_train) %>%
+  extract_fit_parsnip() %>%
+  vip(geom = "point")
+
+```
+
+```{r}
+final_res <- last_fit(final_xgb, df_split)
+
+collect_metrics(final_res)
+```
+
+Save models
+```{r}
+# three different save formats just in case
+# 1. Rds
+save(fit_workflow, file = "fit_workflow.rds")
+# 2. rda
+save(fit_workflow, file = "fit_workflow_2.rda")
+# 3. raw xbg object, which can then be loaded with xgb.load
+model_obj <- fit_workflow$fit$fit$fit
+xgb.save(model_obj, "model_obj")
+```
+
+Model bundling, ignore for now
+```{r}
+# Testing out bundling
+#mod_bundle <- bundle::bundle(fit_workflow)
+#save(mod_bundle, file = "xgb_workflow_bundles.rds")
+
+#save(mod_bundle, file = "xgb_workflow.rds")
+
+# in a new R session:
+#mod_bundle <- readRDS("path/to/file.rds")
+#mod_new <- unbundle(mod_bundle)
+
+#xgb.save.raw(fit_workflow$fit$fit, raw_format = "deprecated")
+
+
+#model_obj <- fit_workflow$fit$fit$fit
+#xgb.save(model_obj, "model_obj")
+
+
+#xgb.save.raw(model_obj, "model_obj_raw")
+```
+
+Predict
+```{r}
+load("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/analysis_sample_baseline.Rds")
+
+analysis_sample <- analysis_sample_baseline %>% 
+  select(-c(subjectkey, src_subject_id, sex, eventname))
+
+
+
+brain_age_df_test <-
+  model_obj %>%
+  predict(newdata = as.matrix(analysis_sample %>% select(-c(interview_age)))) 
+
+brain_age_df_test <- as.data.frame(brain_age_df_test) %>%
+  mutate(
+    # provide the chronological age at time of scan
+    truth = analysis_sample_baseline$interview_age
+  ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+
+
+#workflow_predict <- predict(fit_workflow, analysis_sample)
+
+brain_age_df_workflow <- fit_workflow %>%
+  predict(new_data = analysis_sample) %>%
+  mutate(
+    # provide the chronological age at time of scan
+    truth = analysis_sample$interview_age
+  ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+```
+
+
+Bias Correction
+```{r}
+#run model on validation set
+abcd_brain_age_correction <-
+  fit_workflow %>%
+  predict(new_data = df_validation) %>%
+  mutate(
+    # provide the chronological age at time of scan
+    truth = df_validation$interview_age
+  ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+
+
+#get MAE for hold-out 
+abcd_brain_age_correction %>%
+  metrics(truth = truth, estimate = .pred)
+
+abcd_bias_mod <- lm(.pred ~ truth, data = abcd_brain_age_correction)
+
+# extract intercept and slope
+#
+abcd_bias_intercept <- abcd_bias_mod$coefficients[["(Intercept)"]]
+
+abcd_bias_slope <-  abcd_bias_mod$coefficients[["truth"]]
+
+  
+# create bias correct data frame
+#Baseline
+brain_age_corrected_df <- brain_age_df %>%
+  mutate(
+    # corrected brain age prediction
+    corrected_pred =  (.pred - abcd_bias_intercept) / abcd_bias_slope
+  ) %>%
+  # corrected corrected brain age gap
+  mutate(corrected_gap = corrected_pred - truth)
+
+```
