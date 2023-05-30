@@ -679,7 +679,14 @@ sample_1_baseline <- brainage_pds_baseline[sample_ind_baseline, ]
 sample_2_baseline <- brainage_pds_baseline[-sample_ind_baseline, ]
 
 #t test for age differences
-t.test(sample_1_baseline$interview_age, sample_2_baseline$interview_age)
+t_apa(t_test(sample_1_baseline$interview_age, sample_2_baseline$interview_age))
+
+#chi-sq for sex differences
+#chisq_apa(chisq.test(sample_1_baseline$sex, sample_2_baseline$sex))
+
+prop <- c(length(which(sample_2_baseline$sex == "F")) / length(which(sample_2_baseline$sex == "F" | sample_2_baseline$sex == "M")), length(which(sample_2_baseline$sex == "M")) / length(which(sample_2_baseline$sex == "F" | sample_2_baseline$sex == "M")))
+
+chisq_apa(chisq.test(x = table(sample_1_baseline$sex), p = prop))
 
 #Save samples
 save(brainage_pds_baseline, file="BrainagePDSBaseline.Rda")
@@ -707,7 +714,14 @@ sample_1_followup <- brainage_pds_followup[sample_ind_followup, ]
 sample_2_followup <- brainage_pds_followup[-sample_ind_followup, ]
 
 #t test for age differences
-t.test(sample_1_followup$interview_age, sample_2_followup$interview_age)
+t_apa(t_test(sample_1_followup$interview_age, sample_2_followup$interview_age))
+
+#chi-sq for sex differences
+
+props <- c(length(which(sample_2_followup$sex == "F")) / length(which(sample_2_followup$sex == "F" | sample_2_followup$sex == "M")), length(which(sample_2_followup$sex == "M")) / length(which(sample_2_followup$sex == "F" | sample_2_followup$sex == "M")))
+
+chisq_apa(chisq.test(x = table(sample_1_followup$sex), p = props))
+
 
 #Save samples
 save(brainage_pds_followup, file="BrainagePDSFollowUp.Rda")

@@ -15,8 +15,8 @@ library(vip)
 
 Import Data
 ```{r}
-
-load("~/Volumes/DevBrainLab/Lucy/fyp/ABCDBrainAgeDiffCorrected.Rda")
+# make sure to move this file to the server
+load("/Volumes/devbrainlab/Lucy/BrainAGE/Diff Scores/Corrected_Diff_BrainAGE.Rda.Rda")
 #brain_age_corrected_df_diff
 
 ```
@@ -24,10 +24,10 @@ load("~/Volumes/DevBrainLab/Lucy/fyp/ABCDBrainAgeDiffCorrected.Rda")
 
 Descriptive Plots
 ```{r}
-hist(brain_age_corrected_df_diff$corrected_gap)
+hist(brain_age_diff_corrected_df$corrected_gap)
 
 
-ggpar((brain_age_corrected_df_diff %>% 
+ggpar((brain_age_diff_corrected_df %>% 
   #filter(!is.na(youth_pds_cat)) %>% 
   ggdensity(x = "corrected_gap", add="mean")), 
   xlab="Brain Age Gap", ylab="Density", legend.title = "Difference Scores") 
@@ -36,19 +36,32 @@ ggpar((brain_age_corrected_df_diff %>%
 
 # Actual vs Corrected Predictions, w/ perfect correlation line
 
-diff_pred_plot <- ggplot(brain_age_corrected_df_diff, aes(x=truth, y=corrected_pred)) + 
+diff_pred_plot <- ggplot(brain_age_diff_corrected_df, aes(x=truth, y=corrected_pred)) + 
   geom_jitter(color="#619B8A")+
-  geom_abline(a=0, b=1, color='#233D4D') +
+ # geom_abline(a=0, b=1, color='#233D4D') +
   labs(x = "Scan/Chronological Age (Midpoint)", y ="Predicted Age (Midpoint)") +
   theme_classic() + 
   theme(text = element_text(size = 14))  
 #ggsave(filename="diff_truth_corrected_pred_mod1.png",
   #                        width=7, height=4, units='in', dpi=300)
 
+diff_pred_plot
+
+cor(brain_age_diff_corrected_df$truth, brain_age_diff_corrected_df$corrected_pred)
+
+cor.test(brain_age_diff_corrected_df$truth, brain_age_diff_corrected_df$corrected_pred)
+
+# uncorrected 
+ggplot(brain_age_diff_corrected_df, aes(x=truth, y=.pred)) + 
+  geom_jitter(color="#619B8A")+
+ # geom_abline(a=0, b=1, color='#233D4D') +
+  labs(x = "Scan/Chronological Age (Midpoint)", y ="Predicted Age (Midpoint)") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
 
 
 # Age Bias - truth vs corrected gap
-diff_gap_plot <- ggplot(brain_age_corrected_df_diff, aes(x=truth, y=corrected_gap)) + 
+diff_gap_plot <- ggplot(brain_age_diff_corrected_df, aes(x=truth, y=corrected_gap)) + 
   geom_jitter(color="#619B8A")+
   geom_smooth(method=lm, color='#233D4D') +
   labs(x = "Scan/Chronological Age (Midpoint)", y ="Corrected Gap") +
@@ -57,7 +70,7 @@ diff_gap_plot <- ggplot(brain_age_corrected_df_diff, aes(x=truth, y=corrected_ga
 #ggsave(filename="followup_truth_corrected_gap_mod1.png",
   #                        width=7, height=4, units='in', dpi=300)
 
-ggscatter(brain_age_corrected_df_diff, x = "truth", y = "gap",
+ggscatter(brain_age_diff_corrected_df, x = "truth", y = "gap",
    color = "#00AFBB", # Points color, shape and size
    add = "reg.line",  # Add regressin line
    add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
@@ -77,24 +90,28 @@ ggarrange(diff_pred_plot, diff_gap_plot,
 #Fit Metrics
 
 #baseline uncorrected
-brain_age_corrected_df_diff %>%
+brain_age_diff_corrected_df %>%
   metrics(truth = truth, estimate = .pred)
 #baseline corrected
-brain_age_corrected_df_diff %>%
+brain_age_diff_corrected_df %>%
   metrics(truth = truth, estimate = corrected_pred)
 
 ```
 
 Variable Importance
 ```{r}
+final_xgb_diff %>%
+  fit(data = df_train) %>%
+  extract_fit_parsnip() %>%
+  vip(geom = "point")
 
-abcd_diff_vi <- vi(xgb_final_mod) #xgb_final_mod, xgboost_abcd_brain_age_mod
-#abcd_vi
-write_csv(abcd_diff_vi, "abcd_diff_vi.csv")
+#abcd_diff_vi <- vi(xgb_final_mod)
+
+#write_csv(abcd_diff_vi, "abcd_diff_vi.csv")
 
 
-vip(xgb_final_mod, num_features = 20)  +
-  theme_light()
+#vip(xgb_final_mod, num_features = 20)  +
+#  theme_light()
 
 ```
 

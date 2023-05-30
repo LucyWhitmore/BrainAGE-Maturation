@@ -142,9 +142,9 @@ Prep for training
 # Select only difference columns
 smri_difference_calculated_subset <- smri_difference_calculated %>% 
   select(src_subject_id, ends_with("diff")) 
-  #divide all brain columns by interview age
-  
 
+
+#divide all brain columns by change in interview age
 smri_difference_calculated_subset[, -(1:2)] <- sweep(smri_difference_calculated_subset[, -(1:2)], 1, smri_difference_calculated_subset[, 2], "/")
 
 
@@ -226,3 +226,133 @@ save(sample_test_diff, file="sample_test_diff.Rda")
 
 
 ```
+
+
+
+############################################################
+MAY 2023 Update - New Approach
+###########################################################
+
+Updates to this version: Predicting T2 age from difference scores (scaled by time interval, in delta interview age)
+
+Load Structural Data
+```{r}
+#Load list of included subjects
+struc_include_baseline<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(1:11) %>% 
+  mutate(interview_age = as.numeric(interview_age),
+        imgincl_t1w_include = as.numeric(imgincl_t1w_include)) %>% 
+  filter(imgincl_t1w_include == 1) %>% 
+  filter(eventname=="baseline_year_1_arm_1")
+  
+  
+struc_include_followup<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(1:11) %>% 
+  mutate(interview_age = as.numeric(interview_age),
+        imgincl_t1w_include = as.numeric(imgincl_t1w_include)) %>% 
+  filter(imgincl_t1w_include == 1) %>% 
+  filter(eventname=="2_year_follow_up_y_arm_1")
+
+
+#Load structural data
+#Filter for volume & area measurements
+smri_baseline_v2 <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip10201.txt") %>%
+  filter(eventname=="baseline_year_1_arm_1") %>% 
+  filter(!collection_title=="collection_title") %>% 
+  filter(src_subject_id%in%struc_include_baseline$src_subject_id) %>% 
+  select(subjectkey, src_subject_id, interview_age, sex, eventname, matches("vol|area|thick")) %>% 
+  select(-contains(c('cf'))) %>% #remove genetically derived parcellations
+  select(-c(smri_area_cdk_totallh, smri_area_cdk_totalrh, smri_area_cdk_total, smri_vol_scs_lesionlh, smri_vol_scs_lesionrh, smri_vol_scs_wmhint, smri_vol_scs_wmhintlh, smri_vol_scs_wmhintrh, smri_vol_scs_wholeb, smri_vol_scs_latventricles, smri_vol_scs_allventricles, smri_vol_scs_cbwmatterrh, smri_vol_scs_cbwmatterlh))
+
+
+
+smri_followup_v2 <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip10201.txt") %>%
+  filter(eventname=="2_year_follow_up_y_arm_1") %>% 
+  filter(!collection_title=="collection_title") %>% 
+  filter(src_subject_id%in%struc_include_followup$src_subject_id) %>% 
+  select(subjectkey, src_subject_id, interview_age, sex, eventname, matches("vol|area|thick")) %>% 
+  select(-contains(c('cf'))) %>% #remove genetically derived parcellations
+  select(-c(smri_area_cdk_totallh, smri_area_cdk_totalrh, smri_area_cdk_total, smri_vol_scs_lesionlh, smri_vol_scs_lesionrh, smri_vol_scs_wmhint, smri_vol_scs_wmhintlh, smri_vol_scs_wmhintrh, smri_vol_scs_wholeb, smri_vol_scs_latventricles, smri_vol_scs_allventricles, smri_vol_scs_cbwmatterrh, smri_vol_scs_cbwmatterlh))
+
+
+#renamed_smri_baseline<-rio::import("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/renamed_smri_baseline.Rda")
+
+```
+
+Load and join data
+```{r}
+
+#Convert to numeric
+smri_baseline_v2[,6:ncol(smri_baseline_v2)] <- sapply(smri_baseline_v2[,6:ncol(smri_baseline_v2)],as.numeric)
+
+# Calculate age in years
+smri_baseline_v2 <- smri_baseline_v2 %>% 
+  mutate(interview_age = as.numeric(interview_age)/12)
+
+#Convert to numeric
+smri_followup_v2[,6:ncol(smri_followup_v2)] <- sapply(smri_followup_v2[,6:ncol(smri_followup_v2)],as.numeric)
+
+# calculate age in years
+smri_followup_v2 <- smri_followup_v2 %>% 
+  mutate(interview_age = as.numeric(interview_age)/12)
+
+
+smri_difference_v2 <- left_join(smri_baseline_v2, smri_followup_v2, by ="src_subject_id")
+```
+
+
+
+
+Calculate difference scores
+```{r}
+smri_difference_calculated_v2 <- smri_difference_v2 %>%
+ select(-c(subjectkey.x,subjectkey.y, sex.x,sex.y, eventname.x,eventname.y)) %>% 
+ mutate(across(ends_with(".y"), .names = "{col}_diff") - across(ends_with(".x"))) %>%
+ rename_with(~ sub("_\\d+", "", .), ends_with("_diff"))
+
+#need to subtract, then divide by age gap
+```
+
+
+
+Set up data
+```{r}
+smri_difference_v2 <- smri_difference_calculated_v2 %>% 
+  select(src_subject_id, interview_age.y, ends_with("diff")) 
+
+
+#divide all brain columns by change in interview age
+# this gets us per year change (not a %, but numeric change per year)
+smri_difference_v2[, -(1:3)] <- sweep(smri_difference_v2[, -(1:3)], 1, smri_difference_v2[, 3], "/")
+
+
+smri_difference_v2 <- smri_difference_v2 %>% 
+  filter(!is.na(interview_age.y_diff))
+
+
+#1000 people for training
+
+#Split sample
+smp_size_diff_v2 <- floor(0.25 * nrow(smri_difference_v2)) #training sample of 1000 participants 
+
+## set the seed to make your partition reproducible
+set.seed(123)
+sample_ind_diff_v2 <- sample(seq_len(nrow(smri_difference_v2)), size = smp_size_diff_v2)
+
+sample_train_diff_v2 <- smri_difference_v2[sample_ind_diff_v2, ]
+sample_test_diff_v2 <- smri_difference_v2[-sample_ind_diff_v2, ]
+
+# select just subject_id, brain columns, age midpoint
+sample_train_diff_v2 <- sample_train_diff_v2 %>% 
+select(-c(src_subject_id, interview_age.y_diff))
+
+
+save(sample_train_diff_v2, file="sample_train_diff_v2.Rda")
+save(sample_test_diff_v2, file="sample_test_diff_v2.Rda")
+```
+
+
+
+

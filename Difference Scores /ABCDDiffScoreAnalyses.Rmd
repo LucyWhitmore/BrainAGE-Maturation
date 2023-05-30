@@ -1,0 +1,113 @@
+---
+title: "DiffScoreAnalyses"
+author: "Lucy Whitmore"
+date: "12/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(vip)
+```
+
+
+Import Data
+```{r}
+
+load("/Volumes/devbrainlab/Lucy/BrainAGE/Diff Scores/ABCDBrainAgeDiffCorrected.Rda")
+#brain_age_corrected_df_diff
+
+```
+
+
+Descriptive Plots
+```{r}
+hist(brain_age_corrected_df_diff$corrected_gap)
+
+
+ggpar((brain_age_corrected_df_diff %>% 
+  #filter(!is.na(youth_pds_cat)) %>% 
+  ggdensity(x = "corrected_gap", add="mean")), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Difference Scores") 
+
+
+
+# Actual vs Corrected Predictions, w/ perfect correlation line
+
+diff_pred_plot <- ggplot(brain_age_corrected_df_diff, aes(x=truth, y=corrected_pred)) + 
+  geom_jitter(color="#619B8A")+
+ # geom_abline(a=0, b=1, color='#233D4D') +
+  labs(x = "Scan/Chronological Age (Midpoint)", y ="Predicted Age (Midpoint)") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+#ggsave(filename="diff_truth_corrected_pred_mod1.png",
+  #                        width=7, height=4, units='in', dpi=300)
+
+diff_pred_plot
+
+cor(brain_age_corrected_df_diff$truth, brain_age_corrected_df_diff$corrected_pred)
+
+# uncorrected 
+ggplot(brain_age_corrected_df_diff, aes(x=truth, y=.pred)) + 
+  geom_jitter(color="#619B8A")+
+ # geom_abline(a=0, b=1, color='#233D4D') +
+  labs(x = "Scan/Chronological Age (Midpoint)", y ="Predicted Age (Midpoint)") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+
+
+# Age Bias - truth vs corrected gap
+diff_gap_plot <- ggplot(brain_age_corrected_df_diff, aes(x=truth, y=corrected_gap)) + 
+  geom_jitter(color="#619B8A")+
+  geom_smooth(method=lm, color='#233D4D') +
+  labs(x = "Scan/Chronological Age (Midpoint)", y ="Corrected Gap") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+#ggsave(filename="followup_truth_corrected_gap_mod1.png",
+  #                        width=7, height=4, units='in', dpi=300)
+
+ggscatter(brain_age_corrected_df_diff, x = "truth", y = "gap",
+   color = "#00AFBB", # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+
+
+#Panel Plots
+ggarrange(diff_pred_plot, diff_gap_plot, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+
+#ggsave(filename = "pred_bias_mod1.png",
+#                          width=10, height=10, units='in', dpi=300)
+
+
+#Fit Metrics
+
+#baseline uncorrected
+brain_age_corrected_df_diff %>%
+  metrics(truth = truth, estimate = .pred)
+#baseline corrected
+brain_age_corrected_df_diff %>%
+  metrics(truth = truth, estimate = corrected_pred)
+
+```
+
+Variable Importance
+```{r}
+
+abcd_diff_vi <- vi(xgb_final_mod) #xgb_final_mod, xgboost_abcd_brain_age_mod
+#abcd_vi
+write_csv(abcd_diff_vi, "abcd_diff_vi.csv")
+
+
+vip(xgb_final_mod, num_features = 20)  +
+  theme_light()
+
+```
+
+
+
