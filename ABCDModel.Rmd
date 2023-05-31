@@ -10,7 +10,7 @@ packages <-  c("tidyverse",
                "reshape2",
                "nlme", "lme4",
                "data.table", "psych",
-               "parallel","lubridate",
+               "parallel","lubridate", "here",
                "ggpubr", "broom", 
                "apaTables", "MetBrewer", "beepr", "doParallel", "tictoc", "rsample", "tidymodels")
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
@@ -41,7 +41,7 @@ load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/training_sample_baseline.Rds")
 
 Test Model
 ```{r}
-abcd_brainage_model <- readRDS("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/xgboost_abcd_brain_age_mod_5_9.rds")
+abcd_brainage_model <- readRDS(here("UpdatedModels", "abcd_fit_workflow.rds"))
 ```
 
 Predict Brain Age (baseline)
@@ -120,7 +120,6 @@ abcd_brain_age_correction <-
 #get MAE for hold-out 
 abcd_brain_age_correction %>%
   metrics(truth = truth, estimate = .pred)
-
 
 
 abcd_bias_mod_baseline <- lm(.pred ~ truth, data = abcd_brain_age_correction)
