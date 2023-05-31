@@ -15,4 +15,4 @@ If you're interested in using the model to make predictions on your own data, fo
 5. To perform bias correction, run lines 130-142 of ABCDModel.Rmd. 
 
 
-If you want to train your own model, use the code from UpdatedModels/ABCDModelTraining.Rmd (h/t to Vlad Drobonin for the original model training code, which has been updated to use workflows)
+If you want to train your own model, use the code from UpdatedModels/ABCDModelTraining.Rmd (h/t to Vlad Drobonin for the original model training code (linked in /DevelopmentalBrainAGE), which has been updated to use workflows)
