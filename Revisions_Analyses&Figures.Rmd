@@ -1,0 +1,771 @@
+---
+title: "Revisions Analyses & Figures"
+author: "Lucy Whitmore"
+date: "7/26/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Install combat
+```{r}
+library(devtools)
+install_github("jfortin1/neuroCombatData")
+install_github("jfortin1/neuroCombat_Rpackage")
+
+
+library(tidymodels) # machine learning metaverse
+library(xgboost) # main engine, needs version 1.0.0.2, see above
+library(effectsize)
+```
+
+Load everything (uncorrected for scanner)
+```{r}
+# BrainAGE and Behavioral Data - Vlad's Model, Baseline
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/BrainagePDSBaseline.Rda")
+
+# BrainAGE and Behavioral Data - Vlad's Model, Follow-Up
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/BrainagePDSFollowUp.Rda")
+
+# BrainAGE and Behavioral Data - ABCD Model, Baseline
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/ABCDBaselineSample.Rda")
+```
+
+Load Structural Data
+```{r}
+#Load list of included subjects
+struc_include_baseline<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(1:11) %>% 
+  mutate(interview_age = as.numeric(interview_age),
+        imgincl_t1w_include = as.numeric(imgincl_t1w_include)) %>% 
+  filter(imgincl_t1w_include == 1) %>% 
+  filter(eventname=="baseline_year_1_arm_1")
+  
+  
+struc_include_followup<-rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_imgincl01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(1:11) %>% 
+  mutate(interview_age = as.numeric(interview_age),
+        imgincl_t1w_include = as.numeric(imgincl_t1w_include)) %>% 
+  filter(imgincl_t1w_include == 1) %>% 
+  filter(eventname=="2_year_follow_up_y_arm_1")
+
+
+#Load structural data
+#Filter for volume & area measurements
+
+##### Need to also select scanner/site #####
+smri_baseline <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip10201.txt") %>%
+  filter(eventname=="baseline_year_1_arm_1") %>% 
+  filter(!collection_title=="collection_title") %>% 
+  filter(src_subject_id%in%struc_include_baseline$src_subject_id) %>% 
+  select(subjectkey, src_subject_id, interview_age, sex, eventname, matches("vol|area")) %>% 
+  select(-contains(c('cf'))) %>% #remove genetically derived parcellations
+  select(-c(smri_area_cdk_totallh, smri_area_cdk_totalrh, smri_area_cdk_total, smri_vol_scs_lesionlh, smri_vol_scs_lesionrh, smri_vol_scs_wmhint, smri_vol_scs_wmhintlh, smri_vol_scs_wmhintrh, smri_vol_scs_wholeb, smri_vol_scs_latventricles, smri_vol_scs_allventricles, smri_vol_scs_cbwmatterrh, smri_vol_scs_cbwmatterlh))
+
+
+smri_followup <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_smrip10201.txt") %>%
+  filter(eventname=="2_year_follow_up_y_arm_1") %>% 
+  filter(!collection_title=="collection_title") %>% 
+  filter(src_subject_id %in% struc_include_followup$src_subject_id) %>% 
+  select(subjectkey, src_subject_id, interview_age, sex, eventname, matches("vol|area")) %>% 
+  select(-contains(c('cf'))) %>% #remove genetically derived parcellations
+  select(-c(smri_area_cdk_totallh, smri_area_cdk_totalrh, smri_area_cdk_total, smri_vol_scs_lesionlh, smri_vol_scs_lesionrh, smri_vol_scs_wmhint, smri_vol_scs_wmhintlh, smri_vol_scs_wmhintrh, smri_vol_scs_wholeb, smri_vol_scs_latventricles, smri_vol_scs_allventricles, smri_vol_scs_cbwmatterrh, smri_vol_scs_cbwmatterlh))
+
+
+
+```
+
+
+# combat/site standardization
+```{r}
+# load raw data
+# filter for quality data
+# keep scanner site
+
+#https://github.com/Jfortin1/neuroCombat_Rpackage/tree/2ccab2b42c59163717f012c70a54d20e8757b1c7
+# can realign to virtual site or to reference site
+
+data.harmonized <- neuroCombat(dat=dat, batch=batch) # batch is the site/scanner
+# maybe need to add age (and gender?) as a covariate, mod = 
+
+# maybe run without empirical bayes because number of features is smaller than number of participants?
+#data.harmonized <- neuroCombat(dat=dat, batch=batch, eb=FALSE)
+
+
+# Load data harmonized using LongCombat - longCombat.R
+load("Volumes/devbrainlab/Lucy/BrainAGE/fyp/harmonized_mri_baseline.Rda")
+load("Volumes/devbrainlab/Lucy/BrainAGE/fyp/harmonized_mri_followup.Rda")
+
+```
+
+Data Cleaning for harmonized data
+```{r}
+mod_1 <- readRDS(
+  file = here::here(
+    "DevelopmentalBrainAge/model/xgboost_9to19_brain_age_mod.rds")) 
+
+
+# check for any columns that aren't in model
+names.use <- names(model1_features_baseline)[!(names(model1_features_baseline) %in% mod_1$fit$feature_names)]
+
+# baseline
+# remove those columns
+model1_features_baseline_clean <- model1_features_baseline %>% 
+  select(-c(FS_R_Cerebellum_Cort_Vol, interview_age))
+
+# reorder column names to match order of feature names
+newdata_baseline = as.matrix(model1_features_baseline_clean)
+newdata_baseline = newdata_baseline[ , mod_1$fit$feature_names]
+
+### Follow-Up
+# remove those columns
+model1_features_followup_clean <- model1_features_followup %>% 
+  select(-c(FS_R_Cerebellum_Cort_Vol, interview_age))
+
+# reorder column names to match order of feature names
+newdata_followup = as.matrix(model1_features_followup_clean)
+newdata_followup = newdata_followup[ , mod_1$fit$feature_names]
+```
+
+
+# rerun predictions on harmonized data
+```{r}
+# drop scanner site variable from data
+
+# predict brainage - baseline, model 1
+
+# Predict
+# This prediction method gives the output as a vector, we'll fix that later on
+brainage_mod1_baseline <-
+  mod_1$fit %>%
+  predict(newdata = newdata_baseline) 
+
+# Calculate gap
+# Turn the vector into a dataframe, rename the prediction column, add back the column with chronological age, and calculate the gap
+brain_age_df_mod1_baseline <- as.data.frame(brainage_mod1_baseline) %>%
+  rename(.pred = brainage_mod1_baseline) %>% 
+  mutate(
+    # provide the chronological age at time of scan
+    truth = model1_features_baseline$interview_age) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+
+
+# bias correction
+# Slope and intercept are hardcoded
+bias_intercept <- 6.41 # xgb_bias_mod$coefficients[["(Intercept)"]]
+bias_slope <- 0.55 # xgb_bias_mod$coefficients[["truth"]]
+
+# create bias corrected data frame
+brain_age_df_mod1_baseline_corrected <- brain_age_df_mod1_baseline %>%
+  mutate(
+    # corrected brain age prediction
+    corrected_pred =  (.pred - bias_intercept) / bias_slope
+  ) %>%
+  # corrected corrected brain age gap
+  mutate(corrected_gap = corrected_pred - truth)
+
+# reattach IDs
+brain_age_df_mod1_baseline_corrected$src_subject_id <- harmonized_mri_baseline$src_subject_id
+
+
+
+# predict brainage - followup, model 1
+brainage_mod1_followup <-
+  mod_1$fit %>%
+  predict(newdata = newdata_followup) 
+
+# Calculate gap
+# Turn the vector into a dataframe, rename the prediction column, add back the column with chronological age, and calculate the gap
+brain_age_df_mod1_followup <- as.data.frame(brainage_mod1_followup) %>%
+  rename(.pred = brainage_mod1_followup) %>% 
+  mutate(
+    # provide the chronological age at time of scan
+    truth = model1_features_followup$interview_age) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+
+
+# create bias corrected data frame
+brain_age_df_mod1_followup_corrected <- brain_age_df_mod1_followup %>%
+  mutate(
+    # corrected brain age prediction
+    corrected_pred =  (.pred - bias_intercept) / bias_slope
+  ) %>%
+  # corrected corrected brain age gap
+  mutate(corrected_gap = corrected_pred - truth)
+
+# reattach IDs
+brain_age_df_mod1_followup_corrected$src_subject_id <- harmonized_mri_followup$src_subject_id
+
+
+# predict brainage - baseline, model 2
+#brainage <-
+ # fit_workflow %>%
+#  predict(new_data = analysis_sample_baseline) %>%
+#  mutate(
+    # provide the chronological age at time of scan
+#    truth = analysis_sample_baseline$interview_age
+ # ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+#  mutate(gap = .pred - truth)
+
+
+# predict brainage - follow-up, model 2 (3?)
+
+#followup_brainage <-
+#  fit_workflow_followup %>%
+#  predict(new_data = analysis_sample_baseline) %>%
+#  mutate(
+    # provide the chronological age at time of scan
+#    truth = analysis_sample_baseline$interview_age
+ # ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+ # mutate(gap = .pred - truth)
+```
+# model features and importance
+```{r}
+# vip plot of feature importance
+library(vip)
+
+vip(abcd_model_obj_combat, num_features = 20) 
+
+vi(abcd_model_obj_combat)
+
+# ggseg importance plots
+# Rename columns to fit with ggseg atlas (ugghhh)
+
+
+# select only name and atlas name, then join with new vip estimates to get around renaming by hand
+abcd_vi_renamed <- rio::import("~/Documents/FYP/abcd_vi_renamed.csv") %>% 
+  select(Variable, brain_labels_dk, label)
+
+abcd_vi <- left_join(vi(abcd_model_obj_combat), abcd_vi_renamed)
+
+abcd_vi_renamed_dk <- rio::import("~/Documents/FYP/abcd_vi_renamed_dk.csv") %>% 
+  select(Variable, label, aseg_label)
+
+abcd_vi_dk <- left_join(vi(abcd_model_obj_combat), abcd_vi_renamed_dk)
+
+
+
+#check labels
+brain_labels(dk)
+brain_labels(aseg)
+
+
+#Cortical - Volume
+dk_vi_vol <- abcd_vi_dk %>%
+  filter(grepl('Vol', Variable)) %>% 
+  filter(label != "") %>% 
+  select(Importance,label)
+
+dk_vi_vol <- data.frame(dk_vi_vol)
+
+ggplot(dk_vi_vol) +
+  geom_brain(atlas = dk, position = position_brain(hemi ~ side), aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
+  labs(title = "Cortical Volume")
+ggsave(filename="abcd_model_dk_vol_importance.png",
+                         width=8, height=4, units='in', dpi=300)
+
+
+#Cortical - Area
+dk_vi_area <- abcd_vi_renamed_dk %>%
+  filter(grepl('Area', Variable)) %>% 
+  filter(label != "") %>% 
+  select(Importance,label)
+
+dk_vi_area <- data.frame(dk_vi_area)
+
+ggplot(dk_vi_area) +
+  geom_brain(atlas = dk, position = position_brain(hemi ~ side), aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
+  labs(title = "Cortical Area")
+ggsave(filename="abcd_model_dk_area_importance.png",
+                         width=8, height=4, units='in', dpi=300)
+
+
+
+
+#Subcortical
+aseg_vi <- abcd_vi_renamed %>%
+  filter(label != "") %>% 
+  select(Importance,label)
+  
+aseg_vi <- data.frame(aseg_vi)
+  
+ggplot(aseg_vi) +
+  geom_brain(atlas = aseg, side="coronal", aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51')
+ggsave(filename="abcd_model_aseg_importance_coronal.png",
+                          width=7, height=4, units='in', dpi=300)
+
+
+ggplot(aseg_vi) +
+  geom_brain(atlas = aseg, side="sagittal", aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51')
+ggsave(filename="abcd_model_aseg_importance_sagittal.png",
+                          width=7, height=4, units='in', dpi=300)
+
+
+#troubleshooting names
+aseg_labs <- brain_labels(aseg) |> 
+  as.character()
+aseg_vi$label[!aseg_vi$label %in% aseg_labs]
+aseg_labs[!aseg_labs %in% aseg_vi$label]
+
+
+
+dk_labs <- brain_labels(dk) |> 
+  as.character()
+dk_vi_area$label[!dk_vi_area$label %in% dk_labs]
+dk_vi_vol$label[!dk_vi_vol$label %in% dk_labs]
+
+
+dk_labs[!dk_labs %in% dk_vi_area$label]
+dk_labs[!dk_labs %in% dk_vi_vol$label]
+
+```
+
+
+
+# attach pds and cognition measures to BrainAGE estimates
+```{r}
+youth_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ypdms01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(5:38) %>% 
+  select(-c(interview_date, pds_remote___1, pds_remote___2, pds_remote___3, pds_remote___4, pds_device)) %>% 
+  mutate_at(c(5:28), as.numeric)
+
+#Raw scores, parent
+parent_pds <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_ppdms01.txt") %>%
+  filter(!collection_title=="collection_title")  %>% 
+  select(5:27) %>% 
+  select(-c(interview_date, pds_select_language___1)) %>% 
+  mutate_at(c(5:21), as.numeric)
+
+#Cognition Scores (Age-Corrected)
+cognition <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_tbss01.txt") %>%
+  filter(!collection_title=="collection_title")  %>% 
+  select(src_subject_id,interview_age, eventname, nihtbx_fluidcomp_agecorrected, nihtbx_cryst_agecorrected, nihtbx_totalcomp_agecorrected, nihtbx_totalcomp_uncorrected) %>% 
+  mutate_at(c(2, 4:7), as.numeric)
+
+
+
+#two or more missing values = exclude
+#PDS mean score is a continuous value calculated by averaging across PDS items following Herting et al. (2021). Items on the PDS were considered missing if participants answered, “I don’t know” or “refuse to answer”, if the response was left blank, or if the response value was outside of the expected range (1 to 4). Participants with two or more missing answers were excluded from the PDS score calculation (following recommendations from (Herting et al., 2021)
+
+
+### Youth-report, removes everyone w/o complete data
+youth_pds[youth_pds == 777] <- NA
+youth_pds[youth_pds == 999] <- NA
+
+
+# Multiwave
+youth_pds_multiwave <- youth_pds %>% 
+  filter(eventname == "baseline_year_1_arm_1" | eventname == "2_year_follow_up_y_arm_1") %>% 
+  mutate(youth_sum = case_when(sex == "M" ~ #male
+                           (pds_ht2_y + pds_bdyhair_y + pds_skin2_y + pds_m4_y + pds_m5_y),  
+                         sex == "F" ~ #female
+                           (pds_ht2_y + pds_bdyhair_y + pds_skin2_y + pds_f4_2_y + pds_f5_y))) %>% 
+  mutate(youth_mean = youth_sum/5)  %>% 
+  select(src_subject_id, eventname, sex, youth_sum, youth_mean)
+
+youth_pds_baseline <- youth_pds_multiwave %>% 
+  filter(eventname == "baseline_year_1_arm_1") %>% 
+  select(-eventname)
+  
+youth_pds_followup <- youth_pds_multiwave %>% 
+  filter(eventname == "2_year_follow_up_y_arm_1") %>% 
+  select(-eventname)
+  
+
+
+#### Parent-report, removes everyone w/o complete data
+parent_pds[parent_pds == 777] <- NA
+parent_pds[parent_pds == 999] <- NA
+
+#Baseline
+parent_pds_multiwave <- parent_pds %>% 
+    filter(eventname == "baseline_year_1_arm_1" | eventname == "2_year_follow_up_y_arm_1") %>% 
+    mutate(parent_sum = case_when(sex == "M" ~ #male
+                           (pds_1_p + pds_2_p + pds_3_p + pds_m4_p + pds_m5_p),  
+                         sex == "F" ~ #female
+                           (pds_1_p + pds_2_p + pds_3_p + pds_f4_p + pds_f5b_p))) %>% 
+  mutate(parent_mean = parent_sum/5) %>% 
+  select(src_subject_id, eventname, sex, parent_sum, parent_mean)
+
+
+parent_pds_baseline <- parent_pds_multiwave %>% 
+    filter(eventname == "baseline_year_1_arm_1") %>% 
+  select(-eventname)
+
+
+parent_pds_followup <- parent_pds_multiwave%>% 
+    filter(eventname == "2_year_follow_up_y_arm_1")%>% 
+  select(-eventname)
+
+
+#### Cognition
+
+#Baseline
+cognition_baseline <- cognition %>% 
+  filter(eventname == "baseline_year_1_arm_1") %>% 
+  select(-eventname) %>%
+  mutate(cog_zscore = scale(nihtbx_totalcomp_uncorrected))
+
+
+
+#### Create Dataframes for Analysis #####
+# join brainage, pds, cognition - change names
+brainage_pds_baseline_combat <- brain_age_df_mod1_baseline_corrected[, c(6,1:5)] %>% 
+  left_join(youth_pds_baseline) %>% 
+  left_join(parent_pds_baseline) %>% 
+  left_join(cognition_baseline)
+
+brainage_pds_followup_combat <- brain_age_df_mod1_followup_corrected[, c(6,1:5)] %>% 
+  left_join(youth_pds_followup) %>% 
+  left_join(parent_pds_followup)
+
+save(brainage_pds_baseline_combat, file="brainage_pds_baseline_combat.Rda")
+save(brainage_pds_followup_combat, file="brainage_pds_followup_combat.Rda")
+
+
+# abcd model, baseline
+abcd_brainage_pds_baseline_combat <- brain_age_corrected_df_combat %>% 
+    left_join(youth_pds_baseline) %>% 
+    left_join(parent_pds_baseline) %>% 
+    left_join(cognition_baseline)
+
+save(abcd_brainage_pds_baseline_combat, file="abcd_brainage_pds_baseline_combat.Rda")
+
+# abcd model, follow-up
+abcd_brainage_pds_followup_combat <- brain_age_corrected_df_combat_followup %>% 
+    left_join(youth_pds_followup) %>% 
+    left_join(parent_pds_followup)
+
+save(abcd_brainage_pds_followup_combat, file="abcd_brainage_pds_followup_combat.Rda")
+
+load("~/Documents/FYP/abcd_brainage_pds_followup_combat.Rda")
+
+```
+
+
+# rerun analyses without splitting
+```{r}
+## Baseline - Model 1
+# get age in months
+# mutate(interview_age_m = interview_age/12)
+
+# brainage ~ youth mean
+baseline_puberty_y_mod1 <- lm(corrected_gap ~ youth_mean + truth, data = brainage_pds_baseline_combat)
+
+# brainage ~ parent mean
+baseline_puberty_p_mod1 <- lm(corrected_gap ~ parent_mean + truth, data = brainage_pds_baseline_combat)
+
+#standard scores - check that this is actually the one we're trying to use
+baseline_cognition_mod1 <- lm(corrected_gap ~ nihtbx_totalcomp_uncorrected + truth, data=brainage_pds_baseline_combat)
+
+
+
+## Followup - Model 1
+# mutate(interview_age_m = interview_age/12)
+# brainage ~ youth mean
+followup_puberty_y_mod1 <- lm(corrected_gap ~ youth_mean + truth, data = brainage_pds_followup_combat)
+
+# brainage ~ parent mean
+followup_puberty_p_mod1 <- lm(corrected_gap ~ parent_mean + truth, data = brainage_pds_followup_combat)
+
+
+## Baseline - Model 2
+# mutate(interview_age_m = interview_age/12)
+# brainage ~ youth mean
+baseline_puberty_y_mod2 <- lm(corrected_gap ~ youth_mean + truth, data = abcd_brainage_pds_baseline_combat)
+
+# brainage ~ parent mean
+baseline_puberty_p_mod2 <- lm(corrected_gap ~ parent_mean + truth, data = abcd_brainage_pds_baseline_combat)
+
+#standard scores - check that this is actually the one we're trying to use
+baseline_cognition_mod2 <- lm(corrected_gap ~ nihtbx_totalcomp_uncorrected + truth, data=abcd_brainage_pds_baseline_combat)
+
+## Followup - Model 2
+# mutate(interview_age_m = interview_age/12)
+# brainage ~ youth mean
+followup_puberty_y_mod2 <- lm(corrected_gap ~ youth_mean + truth, data = abcd_brainage_pds_followup_combat)
+
+# brainage ~ parent mean
+followup_puberty_p_mod2 <- lm(corrected_gap ~ parent_mean + truth, data = abcd_brainage_pds_followup_combat)
+
+```
+
+# model summaries
+```{r}
+summary(baseline_puberty_y_mod1)
+summary(baseline_puberty_p_mod1)
+summary(baseline_cognition_mod1)
+
+
+summary(followup_puberty_y_mod1)
+summary(followup_puberty_p_mod1)
+
+
+summary(baseline_puberty_y_mod2)
+summary(baseline_puberty_p_mod2)
+summary(baseline_cognition_mod2)
+
+summary(followup_puberty_y_mod2)
+summary(followup_puberty_p_mod2)
+
+```
+
+# maybe make a table of results
+```{r}
+
+```
+
+# standardize effect sizes
+```{r}
+library(effectsize)
+# standardize(model) # updated model, refit with standardized data
+# standardize_parameters(models) # table of standardized coefficients from model
+
+# Baseline - Model 1
+standardize_parameters(baseline_puberty_y_mod1)
+standardize_parameters(baseline_puberty_p_mod1)
+standardize_parameters(baseline_cognition_mod1)
+
+# Follow-up - Model 1
+standardize_parameters(followup_puberty_y_mod1)
+standardize_parameters(followup_puberty_p_mod1)
+
+
+# Baseline - Model 2
+standardize_parameters(baseline_puberty_y_mod2)
+standardize_parameters(baseline_puberty_p_mod2)
+standardize_parameters(baseline_cognition_mod2)
+
+# Followup - Model 2
+standardize_parameters(followup_puberty_y_mod2)
+standardize_parameters(followup_puberty_p_mod2)
+standardize(followup_puberty_p_mod2)
+```
+
+# alternate standardization
+```{r}
+install.packages("lm.beta")
+library(lm.beta)
+
+summary(lm.beta(followup_puberty_y_mod2))
+
+
+
+```
+
+
+
+# sex differences
+```{r}
+# model with sex as covariate?
+
+```
+
+# Change plot scaling - Model 1
+```{r}
+# figure 1 and 4, put actual and chronological on the same scale
+# maybe will also need to rerun other plots too, for combat + grid plotting
+
+# Baseline
+#baseline_pred_mod1_plot <- 
+ggplot(brainage_pds_baseline_combat, aes(x=truth, y=corrected_pred)) + 
+  geom_jitter(color="#A1C181", alpha=.2) +
+  geom_abline(a=0, b=1, color='#233D4D') +
+  xlim(5, 20) + # 5, 20
+  ylim(5, 20) +
+  #geom_smooth(method=lm, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+#ggsave(filename="baseline_truth_corrected_pred_mod1.png",
+            #              width=7, height=4, units='in', dpi=300)
+
+
+# Follow-Up
+ggplot(brainage_pds_followup_combat, aes(x=truth, y=corrected_pred)) + 
+  geom_jitter(color="#619B8A", alpha=.2)+
+  geom_abline(a=0, b=1, color='#233D4D') +
+  xlim(6, 21) + # 5, 20
+  ylim(6, 21) +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+
+```
+
+# Change plot scaling - Model 2
+```{r}
+ggplot(abcd_brainage_pds_baseline_combat, aes(x=truth, y=corrected_pred)) + 
+  geom_jitter(color="#E76F51", alpha=.25)+
+  geom_abline(a=0, b=1, color='#233D4D') +
+  xlim(2, 18) + # 5, 20
+  ylim(2, 18) +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
+  theme_classic() + 
+  theme(text = element_text(size = 12))  
+
+
+ggplot(abcd_brainage_pds_followup_combat, aes(x=truth, y=corrected_pred)) + 
+  geom_jitter(color="#BDB5D5", alpha=.25)+
+  geom_abline(a=0, b=1, color='#233D4D') +
+  xlim(1, 22) + # 5, 20
+  ylim(1, 22) +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
+  theme_classic() + 
+  theme(text = element_text(size = 12))  
+
+
+
+```
+
+
+
+# Fig 1 with line of identity, jitter fixed
+```{r}
+# fig 1 has different jitter for ab vs. cd. x axis scaling of ab and cd should be equal
+# add line of identity to fig 1 to vizualize bias - already done for AB, but CD has a regression line, do they want a 1:1 line on that too?
+```
+
+# Plot of model 1 & 2 prediction overlaid (baseline)
+```{r}
+# overlay model 1 on new predictions in fig 4
+
+# try combining into one dataframe and then grouping by model
+# mutate each dataframe to add column for model
+# then rbind
+both_mods_baseline <- rbind(brainage_pds_baseline_combat %>% mutate(model = 1), abcd_brainage_pds_baseline_combat %>% mutate(model = 2))
+
+both_mods_baseline <- both_mods_baseline %>% 
+  mutate(model = as.factor(model))
+
+
+ggplot(both_mods_baseline, aes(x=truth, y=corrected_pred, group=model, col=model, fill=model)) +
+     # geom_point() +
+  geom_jitter(alpha=.2) +
+  #geom_abline(a=0, b=1, color='#233D4D') +
+  #xlim(8, 15) + # 5, 20
+ # ylim(8, 15) +
+  #geom_smooth(method=lm, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+
+# change colors
+# decide if it should only show the same participants
+```
+# Plot of model 1 & 2 prediction overlaid (followup)
+```{r}
+# overlay model 1 on new predictions in fig 4
+
+# try combining into one dataframe and then grouping by model
+# mutate each dataframe to add column for model
+# then rbind
+both_mods_followup <- rbind(brainage_pds_followup_combat %>% mutate(model = 1), abcd_brainage_pds_followup_combat %>% mutate(model = 2))
+
+both_mods_followup <- both_mods_followup %>% 
+  mutate(model = as.factor(model))
+
+
+ggplot(both_mods_followup, aes(x=truth, y=corrected_pred, group=model, col=model, fill=model)) +
+     # geom_point() +
+  geom_jitter(alpha=.2) +
+  #geom_abline(a=0, b=1, color='#233D4D') +
+  #xlim(8, 15) + # 5, 20
+ # ylim(8, 15) +
+  #geom_smooth(method=lm, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+
+# change colors
+# decide if it should only show the same participants
+```
+
+### Rerun old figures
+```{r}
+# Distrubutions of puberty/cognition by model
+
+
+
+
+```
+
+```{r}
+# Prediction Plots
+
+
+
+
+```
+
+```{r}
+# Model feature - baseline
+
+# vip
+
+
+# ggseg
+
+
+```
+
+
+
+
+### New longitudinal analyses ###
+
+figure out how many baseline training v analysis are in follow-up
+```{r}
+# check how many from training sample are in follow-up
+
+renamed_harmonized_mri %>% 
+  filter(eventname == "2_year_follow_up_y_arm_1")  %>% 
+  select(-c(eventname, mri_info_deviceserialnumber)) %>% 
+  filter(src_subject_id %in% model2_features$src_subject_id)
+
+#3,739
+
+# check how many from analysis are in follow-up
+
+renamed_harmonized_mri %>% 
+  filter(eventname == "2_year_follow_up_y_arm_1")  %>% 
+  select(-c(eventname, mri_info_deviceserialnumber)) %>% 
+  filter(src_subject_id %in% model2_analysis$src_subject_id)
+
+# 3,693
+
+
+# total: 7432/7695
+```
+
+```{r}
+# correlation between gaps from waves, or something more complicated?
+# maybe multilevel model so that it's nested by participant? - 
+# correlation for vlad's models
+
+#correlation for abcd models
+
+
+# figure - probably spaghetti plot, show direction of gap change
+
+# for each set of models, look at change in brainage vs chronological age?
+
+```
+
