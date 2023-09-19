@@ -19,6 +19,9 @@ install_github("jfortin1/neuroCombat_Rpackage")
 library(tidymodels) # machine learning metaverse
 library(xgboost) # main engine, needs version 1.0.0.2, see above
 library(effectsize)
+library(psych)
+library(ggpubr)
+library(vip)
 ```
 
 Load everything (uncorrected for scanner)
@@ -227,14 +230,42 @@ brain_age_df_mod1_followup_corrected$src_subject_id <- harmonized_mri_followup$s
   # compute the brain age gap by subtracting chronological age from prediction
  # mutate(gap = .pred - truth)
 ```
+
+
 # model features and importance
 ```{r}
 # vip plot of feature importance
 library(vip)
 
+
+## from model code
+
+final_xgb_combat %>%
+  fit(data = df_train) %>%
+  extract_fit_parsnip() %>%
+  vip(geom = "point")
+
+fit_workflow_combat %>%
+  fit(data = df_train) %>%
+  extract_fit_parsnip() %>%
+  vi()
+
+###
+
+vip(abcd_model_obj_combat, num_features = 175) 
+
 vip(abcd_model_obj_combat, num_features = 20) 
 
-vi(abcd_model_obj_combat)
+vi_updated <- vi(abcd_model_obj_combat)
+
+
+vi(fit_workflow_combat)
+
+vi_updated2 <- vi(extract_fit_parsnip(fit_workflow_combat))
+
+
+#vi_model(abcd_model_obj_combat)
+
 
 # ggseg importance plots
 # Rename columns to fit with ggseg atlas (ugghhh)
@@ -276,7 +307,7 @@ ggsave(filename="abcd_model_dk_vol_importance.png",
 
 
 #Cortical - Area
-dk_vi_area <- abcd_vi_renamed_dk %>%
+dk_vi_area <- abcd_vi_dk %>%
   filter(grepl('Area', Variable)) %>% 
   filter(label != "") %>% 
   select(Importance,label)
@@ -565,18 +596,212 @@ install.packages("lm.beta")
 library(lm.beta)
 
 summary(lm.beta(followup_puberty_y_mod2))
+```
+
+# Descriptive Table
+```{r}
+describe(brainage_pds_baseline_combat)
+
+describe(brainage_pds_followup_combat)
+
+describe(abcd_brainage_pds_baseline_combat)
+
+describe(abcd_brainage_pds_followup_combat)
+```
+# New Demographics Column for Follow- Up (Model 2)
+```{r}
+nrow(abcd_brainage_pds_followup_combat %>% filter(sex == "F")) / nrow(abcd_brainage_pds_followup_combat)
+nrow(abcd_brainage_pds_followup_combat %>% filter(sex == "M")) / nrow(abcd_brainage_pds_followup_combat)
+
+demographics <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/pdem02.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(src_subject_id, contains("demo_race"), demo_ethn_v2, demo_ethn2_v2, demo_comb_income_v2)
+
+demographics_baseline_abcdmodel <- left_join(abcd_baseline, demographics)
+
+demographics_long <- rio::import("/Volumes/devbrainlab/ABCD_Data/ABCD4pt0/abcd_lpds01.txt") %>%
+  filter(!collection_title=="collection_title") %>% 
+  select(src_subject_id, eventname, demo_comb_income_v2_l)
+
+demographics_baseline_abcdmodel <- left_join(demographics_baseline_abcdmodel, demographics_long %>% filter(eventname == "baseline_year_1_arm_1"))
+
+
+#family income
+table(demographics_baseline$demo_comb_income_v2)
+
+
+#Overall values
+#Non-hispanic white
+demographics_baseline %>% 
+  filter(demo_race_a_p___10 == 1 & demo_race_a_p___11 != 1 & demo_race_a_p___12 != 1 & demo_race_a_p___13 != 1 & demo_race_a_p___14 != 1 & demo_race_a_p___15 != 1 & demo_race_a_p___16 != 1 & demo_race_a_p___17 != 1 & demo_race_a_p___18 != 1 & demo_race_a_p___19 != 1 & demo_race_a_p___20 != 1 & demo_race_a_p___21 != 1 & demo_race_a_p___22 != 1 & demo_race_a_p___23 != 1 & demo_race_a_p___24 != 1 & demo_race_a_p___25 != 1 & demo_ethn_v2 != 1)
+
+#Non-hispanic Black
+demographics_baseline %>% 
+  filter(demo_race_a_p___10 != 1 & demo_race_a_p___11 == 1 & demo_race_a_p___12 != 1 & demo_race_a_p___13 != 1 & demo_race_a_p___14 != 1 & demo_race_a_p___15 != 1 & demo_race_a_p___16 != 1 & demo_race_a_p___17 != 1 & demo_race_a_p___18 != 1 & demo_race_a_p___19 != 1 & demo_race_a_p___20 != 1 & demo_race_a_p___21 != 1 & demo_race_a_p___22 != 1 & demo_race_a_p___23 != 1 & demo_race_a_p___24 != 1 & demo_race_a_p___25 != 1 & demo_ethn_v2 != 1)
+
+#Hispanic
+demographics_baseline %>% 
+  filter(demo_ethn_v2 == 1)
+
+demographics_baseline %>% 
+  filter(((demo_race_a_p___10 == 1 | demo_race_a_p___11 == 1) & demo_race_a_p___12 != 1 & demo_race_a_p___13 != 1 & demo_race_a_p___14 != 1 & demo_race_a_p___15 != 1 & demo_race_a_p___16 != 1 & demo_race_a_p___17 != 1 & demo_race_a_p___18 != 1 & demo_race_a_p___19 != 1 & demo_race_a_p___20 != 1 & demo_race_a_p___21 != 1 & demo_race_a_p___22 != 1 & demo_race_a_p___23 != 1 & demo_race_a_p___24 != 1 & demo_race_a_p___25 != 1) & demo_ethn_v2 == 1)
+
+
+#Asian
+demographics_baseline %>% 
+  filter(demo_race_a_p___10 != 1 & demo_race_a_p___11 != 1 & demo_race_a_p___12 != 1 & demo_race_a_p___13 != 1 & demo_race_a_p___14 != 1 & demo_race_a_p___15 != 1 & demo_race_a_p___16 != 1 & demo_race_a_p___17 != 1 & ( demo_race_a_p___18 == 1 | demo_race_a_p___19 == 1 | demo_race_a_p___20 == 1 | demo_race_a_p___21 == 1 | demo_race_a_p___22 == 1 | demo_race_a_p___23 == 1 | demo_race_a_p___24 == 1) & demo_race_a_p___25 != 1 & demo_ethn_v2 != 1)
+
+#Native American Alaska Native
+demographics_baseline %>% 
+  filter(demo_race_a_p___10 != 1 & demo_race_a_p___11 != 1 & (demo_race_a_p___12 ==1 | demo_race_a_p___13 == 1) & demo_race_a_p___14 != 1 & demo_race_a_p___15 != 1 & demo_race_a_p___16 != 1 & demo_race_a_p___17 != 1 & demo_race_a_p___18 != 1 & demo_race_a_p___19 != 1 & demo_race_a_p___20 != 1 & demo_race_a_p___21 != 1 & demo_race_a_p___22 != 1 & demo_race_a_p___23 != 1 & demo_race_a_p___24 != 1 & demo_race_a_p___25 != 1 )
+
+
+#Multiracial
+
+# mutate column: true if participant marked any asian category
+# mutate column: true if participant marked native american/alaska native
+# sum white, black, asian, native american/alaska native, and additional races
+
+demographics_baseline %>% 
+  mutate_at(c(18:33), as.numeric) %>% 
+  mutate(
+    demo_race_asian = case_when((demo_race_a_p___18 == 1 | demo_race_a_p___19 == 1 | demo_race_a_p___20 == 1 | demo_race_a_p___21 == 1 | demo_race_a_p___22 == 1 | demo_race_a_p___23 == 1 | demo_race_a_p___24 == 1) ~ 1,
+                            (demo_race_a_p___18 != 1 & demo_race_a_p___19 != 1 & demo_race_a_p___20 != 1 & demo_race_a_p___21 != 1 & demo_race_a_p___22 != 1 & demo_race_a_p___23 != 1 & demo_race_a_p___24 != 1) ~ 0),
+         demo_race_native_american_alaskan = case_when((demo_race_a_p___12 ==1 | demo_race_a_p___13 == 1) ~ 1,
+                                                       (demo_race_a_p___12 !=1 & demo_race_a_p___13 != 1) ~ 0),
+         race_total = rowSums(across(c(demo_race_a_p___10, demo_race_a_p___11, demo_race_a_p___14, demo_race_a_p___15, demo_race_a_p___16, demo_race_a_p___17, demo_race_a_p___25, demo_race_asian, demo_race_native_american_alaskan)), na.rm=T)) %>% 
+  filter(race_total > 1)
+
+
+#additional races
+#If the caregiver chose Native Hawaiian, Guamanian, or Samoan, Other Race, or refused to choose a racial category, the youth was placed in the “additional” race group as there were too few youth in each of these categories individually for separate analysis.
+
+demographics_baseline %>% 
+  filter(demo_race_a_p___10 != 1 & demo_race_a_p___11 != 1 & demo_race_a_p___12 != 1 & demo_race_a_p___13 != 1 & (demo_race_a_p___14 == 1 | demo_race_a_p___15 == 1 | demo_race_a_p___16 == 1 | demo_race_a_p___17 == 1 | demo_race_a_p___25 == 1) & demo_race_a_p___18 != 1 & demo_race_a_p___19 != 1 & demo_race_a_p___20 != 1 & demo_race_a_p___21 != 1 & demo_race_a_p___22 != 1 & demo_race_a_p___23 != 1 & demo_race_a_p___24 != 1)
 
 
 
 ```
-
-
 
 # sex differences
 ```{r}
 # model with sex as covariate?
 
 ```
+
+## Rerun prediction plots
+```{r}
+## Baseline - Model 1
+baseline_pred_mod1_plot <- ggplot(brainage_pds_baseline_combat, aes(x=truth, y=corrected_pred)) + 
+  geom_jitter(color="#A1C181", alpha=.2) +
+  geom_abline(a=0, b=1, color='#233D4D') +
+  #geom_smooth(method=lm, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+ggsave(filename="baseline_truth_corrected_pred_mod1_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+baseline_gap_mod1_plot <- ggplot(brainage_pds_baseline_combat, aes(x=truth, y=corrected_gap)) + 
+  geom_jitter(color="#A1C181", alpha=.2)+
+  geom_smooth(method=lm, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Corrected Gap") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+ggsave(filename="baseline_truth_corrected_gap_mod1_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+ggarrange(baseline_pred_mod1_plot, baseline_gap_mod1_plot, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+
+ggsave(filename = "pred_bias_baseline_mod1_combat.png",
+                          width=10, height=5, units='in', dpi=300)
+
+## Follow-Up - Model 1
+followup_pred_mod1_plot <- ggplot(brainage_pds_followup_combat, aes(x=truth, y=corrected_pred)) + 
+  geom_jitter(color="#619B8A", alpha=.2)+
+  geom_abline(a=0, b=1, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+ggsave(filename="followup_truth_corrected_pred_mod1_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+# Age Bias - truth vs corrected gap
+followup_gap_mod1_plot <- ggplot(brainage_pds_followup_combat, aes(x=truth, y=corrected_gap)) + 
+  geom_jitter(color="#619B8A", alpha=.2)+
+  geom_smooth(method=lm, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Corrected Gap") +
+  theme_classic() + 
+  theme(text = element_text(size = 14))  
+ggsave(filename="followup_truth_corrected_gap_mod1_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+#Panel Plots
+ggarrange(baseline_pred_mod1_plot, baseline_gap_mod1_plot, followup_pred_mod1_plot, followup_gap_mod1_plot, 
+          labels = c("A", "B", "C", "D"),
+          ncol = 2, nrow = 2)
+
+ggsave(filename = "pred_bias_mod1_combat.png",
+                          width=10, height=10, units='in', dpi=300)
+
+
+
+## Baseline - Model 2
+baseline_pred_mod2_plot <- ggplot(abcd_brainage_pds_baseline_combat, aes(x=truth, y=corrected_pred)) + 
+  geom_jitter(color="#E76F51", alpha=.25)+
+  geom_abline(a=0, b=1, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
+  theme_classic() + 
+  theme(text = element_text(size = 12))  
+ggsave(filename="baseline_truth_corrected_pred_mod2_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+# Age Bias - truth vs corrected gap
+baseline_gap_mod2_plot <- ggplot(abcd_brainage_pds_baseline_combat, aes(x=truth, y=corrected_gap)) + 
+  geom_jitter(color="#E76F51", alpha=.25)+
+  geom_smooth(method=lm, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Corrected Gap") +
+  theme_classic() + 
+  theme(text = element_text(size = 12))  
+ggsave(filename="baseline_truth_corrected_gap_mod2_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+# Follow-Up - Model 2
+# '#C8A2C8', '#856088','#702963', '#800080'
+followup_pred_mod2_plot <- ggplot(abcd_brainage_pds_followup_combat, aes(x=truth, y=corrected_pred)) + 
+  geom_jitter(color="#856088", alpha=.25)+
+  geom_abline(a=0, b=1, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Predicted Age") +
+  theme_classic() + 
+  theme(text = element_text(size = 12))  
+ggsave(filename="followup_truth_corrected_pred_mod2_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+# Age Bias - truth vs corrected gap
+followup_gap_mod2_plot <- ggplot(abcd_brainage_pds_followup_combat, aes(x=truth, y=corrected_gap)) + 
+  geom_jitter(color="#856088", alpha=.25)+
+  geom_smooth(method=lm, color='#233D4D') +
+  labs(x = "Scan/Chronological Age", y ="Corrected Gap") +
+  theme_classic() + 
+  theme(text = element_text(size = 12))  
+ggsave(filename="followup_truth_corrected_gap_mod2_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+
+
+#Panel Plots
+ggarrange(baseline_pred_mod2_plot, baseline_gap_mod2_plot, followup_pred_mod2_plot, followup_gap_mod2_plot,
+          labels = c("A", "B", "C", "D"),
+          ncol = 2, nrow = 2)
+
+ggsave(filename = "pred_bias_mod2_combat.png",
+                          width=10, height=10, units='in', dpi=300)
+
+
+```
+
 
 # Change plot scaling - Model 1
 ```{r}
@@ -630,9 +855,6 @@ ggplot(abcd_brainage_pds_followup_combat, aes(x=truth, y=corrected_pred)) +
   labs(x = "Scan/Chronological Age", y ="Predicted Age") +
   theme_classic() + 
   theme(text = element_text(size = 12))  
-
-
-
 ```
 
 
@@ -642,6 +864,7 @@ ggplot(abcd_brainage_pds_followup_combat, aes(x=truth, y=corrected_pred)) +
 # fig 1 has different jitter for ab vs. cd. x axis scaling of ab and cd should be equal
 # add line of identity to fig 1 to vizualize bias - already done for AB, but CD has a regression line, do they want a 1:1 line on that too?
 ```
+
 
 # Plot of model 1 & 2 prediction overlaid (baseline)
 ```{r}
@@ -655,10 +878,12 @@ both_mods_baseline <- rbind(brainage_pds_baseline_combat %>% mutate(model = 1), 
 both_mods_baseline <- both_mods_baseline %>% 
   mutate(model = as.factor(model))
 
+# Model 1 = light green "#A1C181"
+# Model 2 = red "#E76F51"
 
 ggplot(both_mods_baseline, aes(x=truth, y=corrected_pred, group=model, col=model, fill=model)) +
-     # geom_point() +
   geom_jitter(alpha=.2) +
+  scale_color_manual(values = c("#A1C181", "#E76F51")) +
   #geom_abline(a=0, b=1, color='#233D4D') +
   #xlim(8, 15) + # 5, 20
  # ylim(8, 15) +
@@ -682,10 +907,12 @@ both_mods_followup <- rbind(brainage_pds_followup_combat %>% mutate(model = 1), 
 both_mods_followup <- both_mods_followup %>% 
   mutate(model = as.factor(model))
 
+# model 1: blue/teal "#619B8A"
+# model 2 : purple "#856088"
 
 ggplot(both_mods_followup, aes(x=truth, y=corrected_pred, group=model, col=model, fill=model)) +
-     # geom_point() +
   geom_jitter(alpha=.2) +
+  scale_color_manual(values = c("#619B8A", "#856088")) +
   #geom_abline(a=0, b=1, color='#233D4D') +
   #xlim(8, 15) + # 5, 20
  # ylim(8, 15) +
@@ -698,14 +925,222 @@ ggplot(both_mods_followup, aes(x=truth, y=corrected_pred, group=model, col=model
 # decide if it should only show the same participants
 ```
 
+
+
 ### Rerun old figures
 ```{r}
-# Distrubutions of puberty/cognition by model
+# Distributions of puberty/cognition by model
+#make categorical variable for puberty
+#age-corrected cognition: These are presented as Standard Scores (mean=100, SD=15).
+categorical_pds_baseline_combat <-  brainage_pds_baseline_combat %>% 
+  mutate(youth_pds_cat=cut(youth_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")),
+         parent_pds_cat=cut(parent_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")),
+         cognition_cat=cut(nihtbx_totalcomp_uncorrected, breaks=c(-Inf, 85, 115, Inf), labels=c(">-1", "-1-1", ">1")),
+         cognition_cat_small=cut(nihtbx_totalcomp_uncorrected, breaks=c(-Inf, 92, 108, Inf), labels=c(">-.5", "-.5-.5", ">.5")),
+         cog_quart = cut(nihtbx_totalcomp_uncorrected, quantile(nihtbx_totalcomp_uncorrected, na.rm=T), labels=c("0-25", "25-50", "50-75", "75-100")))
+#don't z-score, include more than 1 standard deviation and less than 1 standard deviation (ignore within 1 SD)
+
+#Youth-Report Puberty
+youth_pds_baseline_mod1_plot <- ggpar((categorical_pds_baseline_combat %>% 
+  filter(!is.na(youth_pds_cat)) %>% 
+  ggdensity(x = "corrected_gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean", palette = c('#3E502A','#7CA352','#A1C181', '#CCDDBB'))),  #,'#526D37'
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS", font.legend = 8) +
+  theme(text = element_text(size = 12)) 
+ggsave(filename="baseline_youth_pds_mod1_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+#Parent-Report Puberty
+parent_pds_baseline_mod1_plot <- ggpar((categorical_pds_baseline_combat %>% 
+  filter(!is.na(parent_pds_cat)) %>% 
+ggdensity(x = "corrected_gap", color= "parent_pds_cat", fill= "parent_pds_cat", add="mean", palette = c('#3E502A','#7CA352','#A1C181', '#CCDDBB'))), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS", font.legend = 8) +
+  theme(text = element_text(size = 12)) 
+ggsave(filename="baseline_parent_pds_mod1_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+#Cognition
+ggpar((categorical_pds_baseline_combat %>% 
+  filter(!is.na(cognition_cat) & cognition_cat!="-1-1" ) %>% 
+  ggdensity(x = "corrected_gap", color= "cognition_cat", fill="cognition_cat", add="mean", palette = c('#7CA352',
+ '#CCDDBB'))), xlab="Brain Age Gap", ylab="Density", legend.title = "Standardized Cognition")  +
+  theme(text = element_text(size = 24)) 
 
 
+ggpar((categorical_pds_baseline_combat %>% 
+  filter(!is.na(cognition_cat)) %>% 
+  ggdensity(x = "corrected_gap", color= "cognition_cat", fill="cognition_cat", add="mean")), xlab="Brain Age Gap", ylab="Density", legend.title = "Age-Corrected Cognition")
+
+ggpar((categorical_pds_baseline_combat %>% 
+  filter(!is.na(cognition_cat_small)) %>% 
+  ggdensity(x = "corrected_gap", color= "cognition_cat_small", fill="cognition_cat_small", add="mean")), xlab="Brain Age Gap", ylab="Density", legend.title = "Age-Corrected Cognition (.5 sd")
+
+
+#Cognition Quartiles
+cog_baseline_mod1_plot <- ggpar((categorical_pds_baseline_combat %>% 
+  filter(!is.na(cog_quart) & cog_quart!="25-50" & cog_quart!="50-75" ) %>% 
+  ggdensity(x = "corrected_gap", color= "cog_quart", fill="cog_quart", add="mean", palette = c('#7CA352',
+ '#CCDDBB'))), xlab="Brain Age Gap", ylab="Density", legend.title = "Cognition (Quartiles)", font.legend = 8)  +
+  theme(text = element_text(size = 12)) 
+
+ggsave(filename="baseline_cognition_mod1_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+
+ggarrange(youth_pds_baseline_mod1_plot, parent_pds_baseline_mod1_plot, cog_baseline_mod1_plot, 
+          labels = c("A", "B", "C"),
+          ncol = 2, nrow = 2)
+
+ggsave(filename = "distributions_baseline_mod1_combat.png",
+                          width=7, height=5, units='in', dpi=300)
+
+```
+```{r}
+#Youth-Report Puberty
+#make categorical variable for puberty
+#age-corrected cognition: These are presented as Standard Scores (mean=100, SD=15).
+categorical_pds_followup_combat <-  brainage_pds_followup_combat %>% 
+  mutate(youth_pds_cat=cut(youth_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")),
+         parent_pds_cat=cut(parent_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")))
+
+#don't z-score, include more than 1 standard deviation and less than 1 standard deviation (ignore within 1 SD)
+
+
+youth_pds_followup_mod1_plot <- ggpar((categorical_pds_followup_combat %>% 
+  filter(!is.na(youth_pds_cat)) %>% 
+  ggdensity(x = "corrected_gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean", palette=c('#B4D0C7','#82B0A2', '#619B8A', '#568A7B'))), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS", font.legend=8)  +
+  theme(text = element_text(size = 12)) 
+
+ggsave(filename="followup_youth_pds_mod1_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+#Parent-Report Puberty
+parent_pds_followup_mod1_plot <-ggpar((categorical_pds_followup_combat %>% 
+  filter(!is.na(parent_pds_cat)) %>% 
+ggdensity(x = "corrected_gap", color= "parent_pds_cat", fill= "parent_pds_cat", add="mean", palette=c('#B4D0C7','#82B0A2', '#619B8A', '#568A7B'))), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS", font.legend=8)  +
+  theme(text = element_text(size = 12)) 
+
+ggsave(filename="followup_parent_pds_mod1_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+
+ggarrange(youth_pds_followup_mod1_plot, parent_pds_followup_mod1_plot, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+ggsave(filename = "distributions_followup_mod1_combat.png",
+                          width=10, height=4, units='in', dpi=300)
+
+```
+
+```{r}
+#Youth-Report Puberty
+#make categorical variable for puberty
+#age-corrected cognition: These are presented as Standard Scores (mean=100, SD=15).
+abcd_baseline_categorical_pds_combat <- abcd_brainage_pds_baseline_combat %>% 
+  mutate(youth_pds_cat=cut(youth_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")),
+         parent_pds_cat=cut(parent_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")),
+         cognition_cat=cut(nihtbx_totalcomp_uncorrected, breaks=c(-Inf, 85, 115, Inf), labels=c(">-1", "-1-1", ">1")),
+         cognition_cat_small=cut(nihtbx_totalcomp_uncorrected, breaks=c(-Inf, 92, 108, Inf), labels=c(">-.5", "-.5-.5", ">.5")),
+         cog_quart = cut(nihtbx_totalcomp_uncorrected, quantile(nihtbx_totalcomp_uncorrected, na.rm=T), labels=c("0-25", "25-50", "50-75", "75-100")))
+
+#don't z-score, include more than 1 standard deviation and less than 1 standard deviation (ignore within 1 SD)
+
+#Youth-report puberty
+youth_pds_baseline_mod2_plot <- ggpar((abcd_baseline_categorical_pds_combat %>% 
+  filter(!is.na(youth_pds_cat)) %>% 
+  ggdensity(x = "corrected_gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean", palette=c('#FCCA46','#F3B5A5', '#E76F51', '#B43718'))), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS",  font.legend = 8)  +
+  theme(text = element_text(size = 12)) 
+
+ggsave(filename="baseline_youth_pds_mod2_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+#Parent-Report Puberty
+parent_pds_baseline_mod2_plot <- ggpar((abcd_baseline_categorical_pds_combat %>% 
+  filter(!is.na(parent_pds_cat)) %>% 
+ggdensity(x = "corrected_gap", color= "parent_pds_cat", fill= "parent_pds_cat", add="mean", palette=c('#FCCA46','#F3B5A5', '#E76F51', '#B43718'))), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS", font.legend = 8)  +
+  theme(text = element_text(size = 12)) 
+
+ggsave(filename="baseline_parent_pds_mod2_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+ggpar((abcd_baseline_categorical_pds_combat %>% 
+  filter(!is.na(cognition_cat)) %>% 
+  ggdensity(x = "corrected_gap", color= "cognition_cat", fill="cognition_cat", add="mean", palette=c('#FCCA46',
+ '#E76F51'))), xlab="Brain Age Gap", ylab="Density", legend.title = "Cognition (Standard Scores") +
+  theme(text = element_text(size = 24)) 
+
+ggpar((abcd_baseline_categorical_pds_combat %>% 
+  filter(!is.na(cognition_cat)) %>% 
+  ggdensity(x = "corrected_gap", color= "cognition_cat_small", fill="cognition_cat_small", add="mean")), xlab="Brain Age Gap", ylab="Density", legend.title = "Cognition (Standard Scores) .5 SD") +
+  theme(text = element_text(size = 24)) 
+
+#Cognition Quartiles
+cog_baseline_mod2_plot <- ggpar((abcd_baseline_categorical_pds_combat %>% 
+  filter(!is.na(cog_quart) & cog_quart!="25-50" & cog_quart!="50-75" ) %>% 
+  ggdensity(x = "corrected_gap", color= "cog_quart", fill="cog_quart", add="mean", palette = c('#FCCA46',
+ '#E76F51'))), xlab="Brain Age Gap", ylab="Density", legend.title = "Cognition (Quartiles)", font.legend = 8)  +
+  theme(text = element_text(size = 12)) 
+  
+ggsave(filename="baseline_cognition_mod2_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+
+
+ggarrange(youth_pds_baseline_mod2_plot, parent_pds_baseline_mod2_plot, cog_baseline_mod2_plot, 
+          labels = c("A", "B", "C"),
+          ncol = 2, nrow = 2)
+ggsave(filename = "distributions_baseline_mod2_combat.png",
+                          width=7, height=5, units='in', dpi=300)
 
 
 ```
+```{r}
+
+####### UPDATE COLORS
+
+#Youth-Report Puberty
+#make categorical variable for puberty
+#age-corrected cognition: These are presented as Standard Scores (mean=100, SD=15).
+abcd_categorical_pds_followup_combat <-  abcd_brainage_pds_followup_combat %>% 
+  mutate(youth_pds_cat=cut(youth_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")),
+         parent_pds_cat=cut(parent_mean, breaks=c(-Inf, 1, 2, 3, Inf), labels=c("1","2","3", "4")))
+
+#don't z-score, include more than 1 standard deviation and less than 1 standard deviation (ignore within 1 SD)
+
+
+youth_pds_followup_mod2_plot <- ggpar((abcd_categorical_pds_followup_combat %>% 
+  filter(!is.na(youth_pds_cat)) %>% 
+  ggdensity(x = "corrected_gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean", palette=c('#C8A2C8', '#856088','#702963', '#800080'))), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS", font.legend=8)  +
+  theme(text = element_text(size = 12)) 
+
+ggsave(filename="followup_youth_pds_mod2_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+#Parent-Report Puberty
+parent_pds_followup_mod2_plot <-ggpar((abcd_categorical_pds_followup_combat %>% 
+  filter(!is.na(parent_pds_cat)) %>% 
+ggdensity(x = "corrected_gap", color= "parent_pds_cat", fill= "parent_pds_cat", add="mean", palette=c('#C8A2C8', '#856088','#702963', '#800080'))), 
+  xlab="Brain Age Gap", ylab="Density", legend.title = "Parent-Report PDS", font.legend=8)  +
+  theme(text = element_text(size = 12)) 
+
+ggsave(filename="followup_parent_pds_mod2_combat.png",
+                          width=7, height=4, units='in', dpi=300)
+
+
+ggarrange(youth_pds_followup_mod2_plot, parent_pds_followup_mod2_plot, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+ggsave(filename = "distributions_followup_mod2_combat.png",
+                          width=10, height=4, units='in', dpi=300)
+
+```
+
+
+
 
 ```{r}
 # Prediction Plots
@@ -726,6 +1161,100 @@ ggplot(both_mods_followup, aes(x=truth, y=corrected_pred, group=model, col=model
 
 ```
 
+
+```{r}
+# Model feature - follow-up
+
+# vip
+abcd_model_obj_combat_followup <- fit_workflow_combat_followup$fit$fit$fit
+
+vip(fit_workflow_combat_followup, num_features = 20)
+
+vip(abcd_model_obj_combat_followup, num_features = 20)
+
+
+
+vi(fit_workflow_combat_followup$fit$fit$fit)
+
+# ggseg
+
+# select only name and atlas name, then join with new vip estimates to get around renaming by hand
+abcd_vi_renamed <- rio::import("~/Documents/FYP/abcd_vi_renamed.csv") %>% 
+  select(Variable, brain_labels_dk, label)
+
+abcd_vi_followup <- left_join(vi(abcd_model_obj_combat_followup), abcd_vi_renamed)
+
+abcd_vi_renamed_dk <- rio::import("~/Documents/FYP/abcd_vi_renamed_dk.csv") %>% 
+  select(Variable, label, aseg_label)
+
+abcd_vi_dk_followup <- left_join(vi(abcd_model_obj_combat_followup), abcd_vi_renamed_dk)
+
+
+
+#check labels
+brain_labels(dk)
+brain_labels(aseg)
+
+
+#Cortical - Volume
+dk_vi_vol_followup <- abcd_vi_dk_followup %>%
+  filter(grepl('Vol', Variable)) %>% 
+  filter(label != "") %>% 
+  select(Importance,label)
+
+dk_vi_vol_followup <- data.frame(dk_vi_vol_followup)
+
+ggplot(dk_vi_vol_followup) +
+  geom_brain(atlas = dk, position = position_brain(hemi ~ side), aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
+  labs(title = "Cortical Volume")
+ggsave(filename="abcd_model_dk_vol_importance.png",
+                         width=8, height=4, units='in', dpi=300)
+
+
+#Cortical - Area
+dk_vi_area_followup <- abcd_vi_dk_followup %>%
+  filter(grepl('Area', Variable)) %>% 
+  filter(label != "") %>% 
+  select(Importance,label)
+
+dk_vi_area_followup <- data.frame(dk_vi_area_followup)
+
+ggplot(dk_vi_area_followup) +
+  geom_brain(atlas = dk, position = position_brain(hemi ~ side), aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
+  labs(title = "Cortical Area")
+ggsave(filename="abcd_model_dk_area_importance.png",
+                         width=8, height=4, units='in', dpi=300)
+
+
+
+
+#Subcortical
+aseg_vi_followup <- abcd_vi_followup %>%
+  filter(label != "") %>% 
+  select(Importance,label)
+  
+aseg_vi_followup <- data.frame(aseg_vi_followup)
+  
+ggplot(aseg_vi_followup) +
+  geom_brain(atlas = aseg, side="coronal", aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51')
+ggsave(filename="abcd_model_aseg_importance_coronal.png",
+                          width=7, height=4, units='in', dpi=300)
+
+
+ggplot(aseg_vi_followup) +
+  geom_brain(atlas = aseg, side="sagittal", aes(fill = Importance))+
+  theme_void() +
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51')
+ggsave(filename="abcd_model_aseg_importance_sagittal.png",
+                          width=7, height=4, units='in', dpi=300)
+
+```
 
 
 
@@ -757,13 +1286,90 @@ renamed_harmonized_mri %>%
 
 ```{r}
 # correlation between gaps from waves, or something more complicated?
-# maybe multilevel model so that it's nested by participant? - 
+# maybe multilevel model so that it's nested by participant? -
+
 # correlation for vlad's models
+# join baseline and follow-up corrected gaps by id
+brainage_both_waves <- left_join(brainage_pds_baseline_combat %>% select(src_subject_id, corrected_pred, corrected_gap) %>% rename(baseline_pred = corrected_pred, baseline_gap = corrected_gap), brainage_pds_followup_combat %>% select(src_subject_id, corrected_pred, corrected_gap) %>% rename(followup_pred = corrected_pred, followup_gap = corrected_gap))
+
+
+cor(brainage_both_waves$baseline_gap, brainage_both_waves$followup_gap, use="complete.obs")
+
+cor.test(brainage_both_waves$baseline_gap, brainage_both_waves$followup_gap, use="complete.obs")
+
 
 #correlation for abcd models
+# join baseline and follow-up corrected gaps by id
+brainage_abcd_both_waves <- left_join(abcd_brainage_pds_baseline_combat %>% select(src_subject_id, corrected_pred, corrected_gap) %>% rename(baseline_pred = corrected_pred, baseline_gap = corrected_gap), abcd_brainage_pds_followup_combat %>% select(src_subject_id, corrected_pred, corrected_gap) %>% rename(followup_pred = corrected_pred, followup_gap = corrected_gap))
 
 
+cor(brainage_abcd_both_waves$baseline_gap, brainage_abcd_both_waves$followup_gap, use="complete.obs")
+
+cor.test(brainage_abcd_both_waves$baseline_gap, brainage_abcd_both_waves$followup_gap, use="complete.obs")
+```
+
+```{r}
 # figure - probably spaghetti plot, show direction of gap change
+# is x-axis time, or age?
+# this might just be too many points to show? maybe fit a line over the top
+# vlad's model
+brainage_both_waves_long <- rbind(brainage_pds_baseline_combat %>% select(src_subject_id, truth, corrected_pred, corrected_gap) %>% mutate(wave=1), brainage_pds_followup_combat %>% select(src_subject_id, truth, corrected_pred, corrected_gap)%>% mutate(wave=2)) 
+
+
+ggplot(data = brainage_both_waves_long, aes(x = truth, y = corrected_gap, group = src_subject_id)) +
+    geom_line(size = .2, alpha=0.4)
+
+ggplot(data = brainage_both_waves_long, aes(x = wave, y = corrected_gap, group = src_subject_id)) +
+    geom_line(size = .2, alpha=0.4)
+
+
+# calculate difference, color by direction
+brainage_slope_count <- brainage_both_waves_long %>%
+  count(src_subject_id) %>% 
+  filter(n > 1)
+  
+ggplot(data = brainage_both_waves_long %>% filter(src_subject_id %in% brainage_slope_count$src_subject_id) %>% 
+                              group_by(src_subject_id) %>%
+                mutate(slope = diff(corrected_gap)),
+       aes(x = truth, y = corrected_gap, group = src_subject_id, color = slope > 0)) +
+    geom_line(size = .2, alpha=0.4) +
+  labs(x= "Chronological Age", y = "Corrected Gap") +
+  scale_color_manual(name = "Direction of Change", labels = c("Negative", "Positive"), values = c("#E76F51",'#CCDDBB')) +
+  theme_minimal()
+
+ 
+# could also facet by slope to reduce lines
+
+
+
+
+# abcd model
+brainage_abcd_both_waves_long <- rbind(abcd_brainage_pds_baseline_combat %>% select(src_subject_id, truth, corrected_pred, corrected_gap) %>% mutate(wave=1), abcd_brainage_pds_followup_combat %>% select(src_subject_id, truth, corrected_pred, corrected_gap)%>% mutate(wave=2)) 
+
+ggplot(data = brainage_abcd_both_waves_long, aes(x = truth, y = corrected_gap, group = src_subject_id)) +
+    geom_line(size = .2, alpha=0.4)
+
+ggplot(data = brainage_abcd_both_waves_long, aes(x = wave, y = corrected_gap, group = src_subject_id)) +
+    geom_line(size = .2, alpha=0.4)
+
+
+# calculate difference, color by direction
+brainage_abcd_slope_count <- brainage_abcd_both_waves_long %>%
+  count(src_subject_id) %>% 
+  filter(n > 1)
+  
+ggplot(data = brainage_abcd_both_waves_long %>% filter(src_subject_id %in% brainage_abcd_slope_count$src_subject_id) %>% 
+                              group_by(src_subject_id) %>%
+                mutate(slope = diff(corrected_gap)),
+       aes(x = truth, y = corrected_gap, group = src_subject_id, color = slope > 0)) +
+    geom_line(size = .2, alpha=0.4) +
+  labs(x= "Chronological Age", y = "Corrected Gap") +
+  scale_color_manual(name = "Direction of Change", labels = c("Negative", "Positive"), values = c("#E76F51",'#CCDDBB')) +
+  theme_minimal()
+
+
+
+# '#568A7B' blue
 
 # for each set of models, look at change in brainage vs chronological age?
 
