@@ -2,7 +2,7 @@
 
 Model training/testing code, analyses, and visualizations for a project examining the relationships between BrainAGE and maturational metrics. 
 
-This repository contains code for the training and testing of a novel BrainAGE adolescent BrainAGE model, as well as code for the analyses and visualizations found in Whitmore, Weston, & Mills (in prep). [preprint link]
+This repository contains code for the training and testing of a novel BrainAGE adolescent BrainAGE model, as well as code for the analyses and visualizations found in Whitmore, Weston, & Mills (in prep). (https://www.biorxiv.org/content/10.1101/2023.05.31.542949v2)
 
 If you're interested in using the model to make predictions on your own data, follow the instructions below:
 
