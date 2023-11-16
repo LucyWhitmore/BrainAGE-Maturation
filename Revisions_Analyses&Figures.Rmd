@@ -241,8 +241,6 @@ brain_age_df_mod1_followup_corrected$src_subject_id <- harmonized_mri_followup$s
  # mutate(gap = .pred - truth)
 ```
 
-
-
 # fit metrics
 ```{r}
 abcd_brainage_pds_followup_combat %>%
@@ -254,7 +252,6 @@ abcd_brainage_pds_followup_combat %>%
 
 cor(abcd_brainage_pds_followup_combat$truth, abcd_brainage_pds_followup_combat$corrected_gap)
 ```
-
 
 # model features and importance
 ```{r}
@@ -433,7 +430,7 @@ ggsave(filename = "mod2_vip_ggseg.tiff",
 
 ```
 
-
+Optional feature name troubleshooting for ggseg
 ```{r}
 #troubleshooting names
 aseg_labs <- brain_labels(aseg) |> 
@@ -574,7 +571,6 @@ save(abcd_brainage_pds_followup_combat, file="abcd_brainage_pds_followup_combat.
 
 
 ```
-
 
 # rerun analyses without splitting
 ```{r}
@@ -1058,7 +1054,6 @@ ggplot(abcd_brainage_pds_followup_combat, aes(x=truth, y=corrected_pred)) +
   theme(text = element_text(size = 12))  
 ```
 
-
 # Plot of model 1 & 2 prediction overlaid (baseline)
 ```{r}
 # overlay model 1 on new predictions in fig 4
@@ -1120,6 +1115,7 @@ ggsave(filename="model1_2_overlaid_followup.png",
 ```
 
 ### Rerun old figures
+# Distributions - Baseline (Model 1)
 ```{r}
 # Distributions of puberty/cognition by model
 #make categorical variable for puberty
@@ -1191,7 +1187,7 @@ ggsave(filename = "distributions_baseline_mod1_combat.tiff",
 
 ```
 
-
+# Distributions - Follow-Up (Model 1)
 ```{r}
 #Youth-Report Puberty
 #make categorical variable for puberty
@@ -1235,6 +1231,7 @@ ggsave(filename = "distributions_followup_mod1_combat.tiff",
 
 ```
 
+# Distributions - Baseline (Model 2)
 ```{r}
 #Youth-Report Puberty
 #make categorical variable for puberty
@@ -1303,10 +1300,8 @@ ggsave(filename = "distributions_baseline_mod2_combat.tiff",
 
 ```
 
+# Distributions - Follow-Up (Model 2)
 ```{r}
-
-
-
 #Youth-Report Puberty
 #make categorical variable for puberty
 #age-corrected cognition: These are presented as Standard Scores (mean=100, SD=15).
@@ -1348,9 +1343,8 @@ ggsave(filename = "distributions_followup_mod2_combat.tiff",
 
 ```
 
-
+# Model features - follow-up
 ```{r}
-# Model feature - follow-up
 
 # vip
 #abcd_model_obj_combat_followup <- fit_workflow_combat_followup$fit$fit$fit
@@ -1455,7 +1449,7 @@ ggsave(filename = "mod2_vip_ggseg_followup.tiff",
 
 ### New longitudinal analyses ###
 
-figure out how many baseline training v analysis are in follow-up
+Check how many baseline training v analysis are in follow-up
 ```{r}
 # check how many from training sample are in follow-up
 
@@ -1529,9 +1523,8 @@ summary(icc_model_mod2)
 Plot of longitudinal BrainAGE
 ```{r}
 # Spaghetti plot, show direction of gap change
-# is x-axis time, or age?
-# this might just be too many points to show? maybe fit a line over the top
-# vlad's model
+
+# Existing model
 brainage_both_waves_long <- rbind(brainage_pds_baseline_combat %>% select(src_subject_id, truth, corrected_pred, corrected_gap) %>% mutate(wave=1), brainage_pds_followup_combat %>% select(src_subject_id, truth, corrected_pred, corrected_gap)%>% mutate(wave=2)) 
 
 
@@ -1559,12 +1552,8 @@ mod1_longitudinal <- ggplot(data = brainage_both_waves_long %>% filter(src_subje
 ggsave(filename="model1_longitudinal.png",
                           width=7, height=4, units='in', dpi=300)
  
-# could also facet by slope to reduce lines
 
-
-
-
-# abcd model
+# ABCD model
 brainage_abcd_both_waves_long <- rbind(abcd_brainage_pds_baseline_combat %>% select(src_subject_id, truth, corrected_pred, corrected_gap) %>% mutate(wave=1), abcd_brainage_pds_followup_combat %>% select(src_subject_id, truth, corrected_pred, corrected_gap)%>% mutate(wave=2)) 
 
 ggplot(data = brainage_abcd_both_waves_long, aes(x = truth, y = corrected_gap, group = src_subject_id)) +

@@ -222,22 +222,6 @@ Predict
 ```{r}
 load("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/Revisions/model2_analysis_followup.Rds")
 
-# combat version
-brain_age_df_combat_followup <-
-  abcd_model_obj_combat_followup %>%
-  predict(newdata = as.matrix(model2_analysis_followup %>% select(-c(src_subject_id, interview_age)))) 
-
-
-brain_age_df_combat_followup <- as.data.frame(brain_age_df_combat_followup) %>%
-  mutate(
-    # provide the chronological age at time of scan
-    truth = model2_analysis_followup$interview_age
-  ) %>%
-  # compute the brain age gap by subtracting chronological age from prediction
-  mutate(gap = .pred - truth)
-
-
-#workflow_predict <- predict(fit_workflow, analysis_sample)
 
 brain_age_df_workflow_combat_followup <- fit_workflow_combat_followup %>%
   predict(new_data = model2_analysis_followup) %>%
@@ -248,6 +232,28 @@ brain_age_df_workflow_combat_followup <- fit_workflow_combat_followup %>%
   # compute the brain age gap by subtracting chronological age from prediction
   mutate(gap = .pred - truth)
 ```
+
+Alternate/Backup Prediction - Use if prior version doesn't work
+```{r}
+# The following version converts the workflow object to a raw xgb object. Over the course of the project, we've discovered that certain features in the xgboost package haven't always worked with updates within tidymodels. In case of deprecation of certain functions/ (or issues with version compatibility), this code should let you access the actual xgboost object, which can then be used to make model predictions. I don't anticipate this will be needed, but if the code on lines 221-233 doesn't work, this might! 
+
+abcd_model_obj_combat_followup <- fit_workflow_combat_followup$fit$fit$fit
+
+# combat version
+brain_age_df_combat_followup <-
+  abcd_model_obj_combat_followup %>%
+  predict(newdata = as.matrix(model2_analysis_followup %>% select(-c(src_subject_id, interview_age)))) 
+
+brain_age_df_combat_followup <- as.data.frame(brain_age_df_combat_followup) %>%
+  mutate(
+    # provide the chronological age at time of scan
+    truth = model2_analysis_followup$interview_age
+  ) %>%
+  # compute the brain age gap by subtracting chronological age from prediction
+  mutate(gap = .pred - truth)
+
+```
+
 
 
 Bias Correction
