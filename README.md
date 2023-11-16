@@ -1,4 +1,4 @@
-# FYP
+# BrainAGE as a metric of maturation in early adolescence
 
 Model training/testing code, analyses, and visualizations for a project examining the relationships between BrainAGE and maturational metrics. 
 
