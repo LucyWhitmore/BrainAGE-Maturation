@@ -42,12 +42,15 @@ load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/training_sample_baseline.Rds")
 Test Model
 ```{r}
 abcd_brainage_model <- readRDS(here("UpdatedModels", "abcd_fit_workflow.rds"))
+abcd_brainage_model <- readRDS("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/abcd_fit_workflow.Rds")
+
+load("/Volumes/devbrainlab/Lucy/BrainAGE/fyp/abcd_fit_workflow.Rds")
 ```
 
 Predict Brain Age (baseline)
 ```{r}
 brain_age_df_baseline <-
-  abcd_brainage_model %>%
+  fit_workflow %>%
   predict(new_data = analysis_sample_baseline) %>%
   mutate(
     # provide the chronological age at time of scan
@@ -156,7 +159,6 @@ brain_age_corrected_df_baseline %>%
 
 brain_age_corrected_df_baseline %>%
   metrics(truth = truth, estimate = corrected_pred)
-
 
 #brain_age_corrected_df_followup %>%
 #  metrics(truth = truth, estimate = corrected_pred)
