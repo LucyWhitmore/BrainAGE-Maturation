@@ -15,7 +15,11 @@ library(xgboost)
 ```
 
 ```{r}
-load("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/training_sample_baseline.Rds")
+#load("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/training_sample_baseline.Rds")
+load("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/model2_features.Rds")
+
+model2_features_noid <- model2_features %>% 
+  select(-c(src_subject_id))
 
 #training_subset_test <- training_sample_baseline[1:100,]
 
@@ -26,7 +30,7 @@ load("/Volumes/devbrainlab/Lucy/BrainAGE/FYP/training_sample_baseline.Rds")
 
 set.seed(42)
 df_split <- initial_split(
-  training_sample_baseline, 
+  model2_features_noid, 
   prop = 0.80,
   # matching age distributions across train and test set
   strata = "interview_age"
@@ -139,21 +143,21 @@ xgb_tuned_results_test %>%
   show_best("mae") 
 
 # select parsimonious params within one SE of best model
-best_xgb_params_test <- xgb_tuned_results_test %>%
+best_xgb_params <- xgb_tuned_results_test %>%
   select_by_one_std_err(metric = "mae", maximize = FALSE, tree_depth) 
 
 ```
 
 Finalize workflow and fit final model
 ```{r}
-final_xgb <- finalize_workflow(
+final_xgb_combat <- finalize_workflow(
   xgb_wf,
-  best_xgb_params_test
+  best_xgb_params
 )
 
-final_xgb
+final_xgb_combat
 
-fit_workflow <- fit(final_xgb, df_train_prep)
+fit_workflow_combat <- fit(final_xgb_combat, df_train_prep)
 
 
 #xgb_final_mod_test <- boost_mod_test %>%
@@ -167,7 +171,7 @@ Variable importance, ignore
 ```{r}
 library(vip)
 
-final_xgb %>%
+final_xgb_combat %>%
   fit(data = df_train) %>%
   extract_fit_parsnip() %>%
   vip(geom = "point")
@@ -175,7 +179,7 @@ final_xgb %>%
 ```
 
 ```{r}
-final_res <- last_fit(final_xgb, df_split)
+final_res <- last_fit(final_xgb_combat, df_split)
 
 collect_metrics(final_res)
 ```
@@ -184,12 +188,12 @@ Save models
 ```{r}
 # three different save formats just in case
 # 1. Rds
-save(fit_workflow, file = "fit_workflow.rds")
+save(fit_workflow_combat, file = "fit_workflow_combat.rds")
 # 2. rda
-save(fit_workflow, file = "fit_workflow_2.rda")
+save(fit_workflow_combat, file = "fit_workflow_2_combat.rda")
 # 3. raw xbg object, which can then be loaded with xgb.load
-model_obj <- fit_workflow$fit$fit$fit
-xgb.save(model_obj, "model_obj")
+abcd_model_obj_combat <- fit_workflow_combat$fit$fit$fit
+xgb.save(abcd_model_obj_combat, "abcd_model_obj_combat")
 ```
 
 Model bundling, ignore for now
@@ -222,15 +226,20 @@ analysis_sample <- analysis_sample_baseline %>%
   select(-c(subjectkey, src_subject_id, sex, eventname))
 
 
-
 brain_age_df_test <-
   model_obj %>%
   predict(newdata = as.matrix(analysis_sample %>% select(-c(interview_age)))) 
 
-brain_age_df_test <- as.data.frame(brain_age_df_test) %>%
+# combat version
+brain_age_df_combat <-
+  abcd_model_obj_combat %>%
+  predict(newdata = as.matrix(model2_analysis %>% select(-c(src_subject_id, interview_age)))) 
+
+
+brain_age_df_combat <- as.data.frame(brain_age_df_combat) %>%
   mutate(
     # provide the chronological age at time of scan
-    truth = analysis_sample_baseline$interview_age
+    truth = model2_analysis$interview_age
   ) %>%
   # compute the brain age gap by subtracting chronological age from prediction
   mutate(gap = .pred - truth)
@@ -238,11 +247,11 @@ brain_age_df_test <- as.data.frame(brain_age_df_test) %>%
 
 #workflow_predict <- predict(fit_workflow, analysis_sample)
 
-brain_age_df_workflow <- fit_workflow %>%
-  predict(new_data = analysis_sample) %>%
+brain_age_df_workflow_combat <- fit_workflow_combat %>%
+  predict(new_data = model2_analysis) %>%
   mutate(
     # provide the chronological age at time of scan
-    truth = analysis_sample$interview_age
+    truth = model2_analysis$interview_age
   ) %>%
   # compute the brain age gap by subtracting chronological age from prediction
   mutate(gap = .pred - truth)
@@ -253,7 +262,7 @@ Bias Correction
 ```{r}
 #run model on validation set
 abcd_brain_age_correction <-
-  fit_workflow %>%
+  fit_workflow_combat %>%
   predict(new_data = df_validation) %>%
   mutate(
     # provide the chronological age at time of scan
@@ -278,7 +287,7 @@ abcd_bias_slope <-  abcd_bias_mod$coefficients[["truth"]]
   
 # create bias correct data frame
 #Baseline
-brain_age_corrected_df <- brain_age_df %>%
+brain_age_corrected_df_combat <- brain_age_df_workflow_combat %>%
   mutate(
     # corrected brain age prediction
     corrected_pred =  (.pred - abcd_bias_intercept) / abcd_bias_slope
@@ -287,3 +296,18 @@ brain_age_corrected_df <- brain_age_df %>%
   mutate(corrected_gap = corrected_pred - truth)
 
 ```
+
+
+Clean up & save
+```{r}
+# add IDs back
+brain_age_corrected_df_combat$src_subject_id <- model2_analysis$src_subject_id
+
+brain_age_corrected_df_combat <- brain_age_corrected_df_combat %>% 
+  select(6, 1:5)
+
+# save dataframe
+save(brain_age_corrected_df_combat, file = "brain_age_corrected_df_combat.Rda")
+
+```
+

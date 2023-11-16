@@ -9,11 +9,11 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Install combat
+Load Packages
 ```{r}
-library(devtools)
-install_github("jfortin1/neuroCombatData")
-install_github("jfortin1/neuroCombat_Rpackage")
+#library(devtools)
+#install_github("jfortin1/neuroCombatData")
+#install_github("jfortin1/neuroCombat_Rpackage")
 
 
 library(tidymodels) # machine learning metaverse
@@ -277,8 +277,9 @@ colnames(df_train)[!(colnames(df_train) %in% vi(fit_workflow_combat)$Variable)]
 
 #xgb.plot.importance(xgb.importance(model = model_obj))
 
-vip(fit_workflow_combat, num_features=20) +
+vip_abcd_baseline <- vip(fit_workflow_combat, num_features=20) +
   theme_light()
+
 ggsave(filename="model2_vip_baseline.png",
                           width=7, height=4, units='in', dpi=300)
 
@@ -290,7 +291,7 @@ load("~/Documents/FYP/Revisions/fit_workflow_combat_followup.rds")
 
 vi(fit_workflow_combat_followup)
 
-vip(fit_workflow_combat_followup, num_features=20) +
+vip_abcd_followup <- vip(fit_workflow_combat_followup, num_features=20) +
   theme_light()
 ggsave(filename="model2_vip_followup.png",
                           width=7, height=4, units='in', dpi=300)
@@ -344,7 +345,10 @@ abcd_vi <- left_join(vi_updated, abcd_vi_renamed)
 abcd_vi_renamed_dk <- rio::import("~/Documents/FYP/abcd_vi_renamed_dk.csv") %>% 
   select(Variable, label, aseg_label)
 
-abcd_vi_dk <- left_join(vi(abcd_model_obj_combat), abcd_vi_renamed_dk)
+#abcd_vi_dk <- left_join(vi(abcd_model_obj_combat), abcd_vi_renamed_dk)
+
+abcd_vi_dk <- left_join(vi_updated, abcd_vi_renamed_dk)
+
 
 
 #check labels
@@ -360,11 +364,12 @@ dk_vi_vol <- abcd_vi_dk %>%
 
 dk_vi_vol <- data.frame(dk_vi_vol)
 
-ggplot(dk_vi_vol) +
+abcd_model_dk_vol_importance_baseline <- ggplot(dk_vi_vol) +
   geom_brain(atlas = dk, position = position_brain(hemi ~ side), aes(fill = Importance))+
   theme_void() +
   scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
   labs(title = "Cortical Volume")
+
 ggsave(filename="abcd_model_dk_vol_importance_combat.png",
                          width=8, height=4, units='in', dpi=300)
 
@@ -377,11 +382,12 @@ dk_vi_area <- abcd_vi_dk %>%
 
 dk_vi_area <- data.frame(dk_vi_area)
 
-ggplot(dk_vi_area) +
+abcd_model_dk_area_importance_baseline <- ggplot(dk_vi_area) +
   geom_brain(atlas = dk, position = position_brain(hemi ~ side), aes(fill = Importance))+
   theme_void() +
   scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
   labs(title = "Cortical Area")
+
 ggsave(filename="abcd_model_dk_area_importance_combat.png",
                          width=8, height=4, units='in', dpi=300)
 
@@ -396,22 +402,39 @@ aseg_vi <- abcd_vi %>%
 aseg_vi <- data.frame(aseg_vi)
 
   
-ggplot(aseg_vi) +
+abcd_model_aseg_importance_coronal_baseline <- ggplot(aseg_vi) +
   geom_brain(atlas = aseg, side="coronal", aes(fill = Importance))+
   theme_void() +
-  scale_fill_gradient(low = '#FDD872', high = '#E76F51')
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51')  +
+  labs(title = "Subcortical Volume")
 ggsave(filename="abcd_model_aseg_importance_coronal_combat.png",
                           width=7, height=4, units='in', dpi=300)
 
 
-ggplot(aseg_vi) +
+abcd_model_aseg_importance_sagittal_baseline <- ggplot(aseg_vi) +
   geom_brain(atlas = aseg, side="sagittal", aes(fill = Importance))+
   theme_void() +
-  scale_fill_gradient(low = '#FDD872', high = '#E76F51')
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51') 
 ggsave(filename="abcd_model_aseg_importance_sagittal_combat.png",
                           width=7, height=4, units='in', dpi=300)
 
 
+# make one aseg figure
+abcd_model_aseg_importance_baseline <- ggarrange(abcd_model_aseg_importance_coronal_baseline, abcd_model_aseg_importance_sagittal_baseline, 
+          ncol = 1, nrow = 2)
+
+
+# Save as final figure
+ggarrange(vip_abcd_baseline, abcd_model_dk_vol_importance_baseline, abcd_model_dk_area_importance_baseline, abcd_model_aseg_importance_baseline, 
+          labels = c("A", "B", "C", "D"),
+          ncol = 2, nrow = 2)
+ggsave(filename = "mod2_vip_ggseg.tiff",
+                          width=12, height=12, units='in', dpi=300)
+
+```
+
+
+```{r}
 #troubleshooting names
 aseg_labs <- brain_labels(aseg) |> 
   as.character()
@@ -888,6 +911,7 @@ ggarrange(baseline_pred_mod1_plot, baseline_gap_mod1_plot,
 ggsave(filename = "pred_bias_baseline_mod1_combat.png",
                           width=10, height=5, units='in', dpi=300)
 
+
 ## Follow-Up - Model 1
 followup_pred_mod1_plot <- ggplot(brainage_pds_followup_combat, aes(x=truth, y=corrected_pred)) + 
   geom_jitter(color="#619B8A", alpha=.2)+
@@ -914,6 +938,10 @@ ggarrange(baseline_pred_mod1_plot, baseline_gap_mod1_plot, followup_pred_mod1_pl
           ncol = 2, nrow = 2)
 
 ggsave(filename = "pred_bias_mod1_combat.png",
+                          width=10, height=10, units='in', dpi=300)
+
+
+ggsave(filename = "pred_bias_mod1_combat.tiff",
                           width=10, height=10, units='in', dpi=300)
 
 
@@ -967,6 +995,9 @@ ggarrange(baseline_pred_mod2_plot, baseline_gap_mod2_plot, followup_pred_mod2_pl
           ncol = 2, nrow = 2)
 
 ggsave(filename = "pred_bias_mod2_combat.png",
+                          width=10, height=10, units='in', dpi=300)
+
+ggsave(filename = "pred_bias_mod2_combat.tiff",
                           width=10, height=10, units='in', dpi=300)
 
 
@@ -1107,6 +1138,7 @@ youth_pds_baseline_mod1_plot <- ggpar((categorical_pds_baseline_combat %>%
   ggdensity(x = "corrected_gap", color= "youth_pds_cat", fill= "youth_pds_cat", add="mean", palette = c('#3E502A','#7CA352','#A1C181', '#CCDDBB'))),  #,'#526D37'
   xlab="Brain Age Gap", ylab="Density", legend.title = "Youth-Report PDS", font.legend = 8) +
   theme(text = element_text(size = 12)) 
+
 ggsave(filename="baseline_youth_pds_mod1_combat.png",
                           width=7, height=4, units='in', dpi=300)
 
@@ -1154,7 +1186,12 @@ ggarrange(youth_pds_baseline_mod1_plot, parent_pds_baseline_mod1_plot, cog_basel
 ggsave(filename = "distributions_baseline_mod1_combat.png",
                           width=7, height=5, units='in', dpi=300)
 
+ggsave(filename = "distributions_baseline_mod1_combat.tiff",
+                          width=7, height=5, units='in', dpi=300)
+
 ```
+
+
 ```{r}
 #Youth-Report Puberty
 #make categorical variable for puberty
@@ -1189,7 +1226,11 @@ ggsave(filename="followup_parent_pds_mod1_combat.png",
 ggarrange(youth_pds_followup_mod1_plot, parent_pds_followup_mod1_plot, 
           labels = c("A", "B"),
           ncol = 2, nrow = 1)
+
 ggsave(filename = "distributions_followup_mod1_combat.png",
+                          width=10, height=4, units='in', dpi=300)
+
+ggsave(filename = "distributions_followup_mod1_combat.tiff",
                           width=10, height=4, units='in', dpi=300)
 
 ```
@@ -1256,6 +1297,9 @@ ggarrange(youth_pds_baseline_mod2_plot, parent_pds_baseline_mod2_plot, cog_basel
 ggsave(filename = "distributions_baseline_mod2_combat.png",
                           width=7, height=5, units='in', dpi=300)
 
+ggsave(filename = "distributions_baseline_mod2_combat.tiff",
+                          width=7, height=5, units='in', dpi=300)
+
 
 ```
 
@@ -1299,6 +1343,9 @@ ggarrange(youth_pds_followup_mod2_plot, parent_pds_followup_mod2_plot,
 ggsave(filename = "distributions_followup_mod2_combat.png",
                           width=10, height=4, units='in', dpi=300)
 
+ggsave(filename = "distributions_followup_mod2_combat.tiff",
+                          width=10, height=4, units='in', dpi=300)
+
 ```
 
 
@@ -1308,7 +1355,7 @@ ggsave(filename = "distributions_followup_mod2_combat.png",
 # vip
 #abcd_model_obj_combat_followup <- fit_workflow_combat_followup$fit$fit$fit
 
-vip(fit_workflow_combat_followup, num_features = 20)
+vip_abcd_followup <- vip(fit_workflow_combat_followup, num_features = 20)
 
 #vip(abcd_model_obj_combat_followup, num_features = 20)
 #vi(fit_workflow_combat_followup$fit$fit$fit)
@@ -1341,7 +1388,7 @@ dk_vi_vol_followup <- abcd_vi_dk_followup %>%
 
 dk_vi_vol_followup <- data.frame(dk_vi_vol_followup)
 
-ggplot(dk_vi_vol_followup) +
+abcd_model_dk_vol_importance_followup <- ggplot(dk_vi_vol_followup) +
   geom_brain(atlas = dk, position = position_brain(hemi ~ side), aes(fill = Importance))+
   theme_void() +
   scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
@@ -1358,7 +1405,7 @@ dk_vi_area_followup <- abcd_vi_dk_followup %>%
 
 dk_vi_area_followup <- data.frame(dk_vi_area_followup)
 
-ggplot(dk_vi_area_followup) +
+abcd_model_dk_area_importance_followup <-ggplot(dk_vi_area_followup) +
   geom_brain(atlas = dk, position = position_brain(hemi ~ side), aes(fill = Importance))+
   theme_void() +
   scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
@@ -1376,20 +1423,33 @@ aseg_vi_followup <- abcd_vi_followup %>%
   
 aseg_vi_followup <- data.frame(aseg_vi_followup)
   
-ggplot(aseg_vi_followup) +
+abcd_model_aseg_importance_coronal_followup <- ggplot(aseg_vi_followup) +
   geom_brain(atlas = aseg, side="coronal", aes(fill = Importance))+
   theme_void() +
-  scale_fill_gradient(low = '#FDD872', high = '#E76F51')
+  scale_fill_gradient(low = '#FDD872', high = '#E76F51') +
+  labs(title = "Subcortical Volume")
 ggsave(filename="abcd_model_aseg_importance_coronal_followup.png",
                           width=7, height=4, units='in', dpi=300)
 
 
-ggplot(aseg_vi_followup) +
+abcd_model_aseg_importance_sagittal_followup <- ggplot(aseg_vi_followup) +
   geom_brain(atlas = aseg, side="sagittal", aes(fill = Importance))+
   theme_void() +
   scale_fill_gradient(low = '#FDD872', high = '#E76F51')
 ggsave(filename="abcd_model_aseg_importance_sagittal_followup.png",
                           width=7, height=4, units='in', dpi=300)
+
+# make one aseg figure
+abcd_model_aseg_importance_followup <- ggarrange(abcd_model_aseg_importance_coronal_followup, abcd_model_aseg_importance_sagittal_followup, 
+          ncol = 1, nrow = 2)
+
+
+# Save as final figure
+ggarrange(vip_abcd_followup, abcd_model_dk_vol_importance_followup, abcd_model_dk_area_importance_followup, abcd_model_aseg_importance_followup, 
+          labels = c("A", "B", "C", "D"),
+          ncol = 2, nrow = 2)
+ggsave(filename = "mod2_vip_ggseg_followup.tiff",
+                          width=12, height=12, units='in', dpi=300)
 
 ```
 
@@ -1487,7 +1547,7 @@ brainage_slope_count <- brainage_both_waves_long %>%
   count(src_subject_id) %>% 
   filter(n > 1)
   
-ggplot(data = brainage_both_waves_long %>% filter(src_subject_id %in% brainage_slope_count$src_subject_id) %>% 
+mod1_longitudinal <- ggplot(data = brainage_both_waves_long %>% filter(src_subject_id %in% brainage_slope_count$src_subject_id) %>% 
                               group_by(src_subject_id) %>%
                 mutate(slope = diff(corrected_gap)),
        aes(x = truth, y = corrected_gap, group = src_subject_id, color = slope > 0)) +
@@ -1519,7 +1579,7 @@ brainage_abcd_slope_count <- brainage_abcd_both_waves_long %>%
   count(src_subject_id) %>% 
   filter(n > 1)
   
-ggplot(data = brainage_abcd_both_waves_long %>% filter(src_subject_id %in% brainage_abcd_slope_count$src_subject_id) %>% 
+mod2_longitudinal <- ggplot(data = brainage_abcd_both_waves_long %>% filter(src_subject_id %in% brainage_abcd_slope_count$src_subject_id) %>% 
                               group_by(src_subject_id) %>%
                 mutate(slope = diff(corrected_gap)),
        aes(x = truth, y = corrected_gap, group = src_subject_id, color = slope > 0)) +
@@ -1530,6 +1590,16 @@ ggplot(data = brainage_abcd_both_waves_long %>% filter(src_subject_id %in% brain
 
 ggsave(filename="model2_longitudinal.png",
                           width=7, height=4, units='in', dpi=300)
+
+
+
+
+# Save as final figure
+ggarrange(mod1_longitudinal, mod2_longitudinal, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+ggsave(filename = "longitudinal_plot.tiff",
+                          width=12, height=4, units='in', dpi=300)
 
 ```
 

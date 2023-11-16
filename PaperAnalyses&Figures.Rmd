@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 packages <-  c("tidyverse",
                "ggpubr", 
                "apaTables", "MetBrewer",
-               "ggseg", "vip", "tidymodels")
+               "ggseg", "vip", "tidymodels", "psych")
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages())))  
 }
@@ -74,6 +74,7 @@ demographics_baseline_abcdmodel <- left_join(demographics_baseline_abcdmodel, de
 
 
 **Vlad's Model, Baseline Analyses**
+
 Run Models
 ```{r}
 # brainage ~ youth sum
@@ -152,8 +153,12 @@ summary(baseline_puberty_p_mean_2)
 summary(baseline_cognition_1)
 summary(baseline_cognition_2)
 
-summary(baseline_cognition_zscore_1_m)
-summary(baseline_cognition_zscore_2_m)
+summary(baseline_cognition_standard_1)
+summary(baseline_cognition_standard_2)
+
+
+summary(baseline_cognition_zscore_1)
+summary(baseline_cognition_zscore_2)
 
 ```
 
@@ -170,6 +175,21 @@ summary(baseline_cognition_2_m)
 
 summary(baseline_cognition_standard_1_m)
 summary(baseline_cognition_standard_2_m)
+
+```
+
+Descriptive Stats
+```{r}
+describe(sample_1_baseline_months)
+
+describe(sample_2_baseline_months)
+
+
+nrow(sample_1_baseline_months %>% filter(sex == "F"))
+
+nrow(sample_2_baseline_months %>% filter(sex == "F"))
+
+
 
 ```
 
@@ -359,8 +379,6 @@ ggpar((categorical_pds_baseline %>%
 
 Demographics for Baseline Sample
 ```{r}
-table(brainage_pds_baseline$sex)
-
 #white
 table(demographics_baseline$demo_race_a_p___10)
 
@@ -415,6 +433,11 @@ table(demographics_baseline$demo_race_a_p___99)
 
 #hispanic or latino
 table(demographics_baseline$demo_ethn_v2)
+```
+
+```{r}
+#sex
+table(brainage_pds_baseline$sex)
 
 #family income
 table(demographics_baseline$demo_comb_income_v2)
@@ -432,6 +455,10 @@ demographics_baseline %>%
 #Hispanic
 demographics_baseline %>% 
   filter(demo_ethn_v2 == 1)
+
+demographics_baseline %>% 
+  filter(((demo_race_a_p___10 == 1 | demo_race_a_p___11 == 1) & demo_race_a_p___12 != 1 & demo_race_a_p___13 != 1 & demo_race_a_p___14 != 1 & demo_race_a_p___15 != 1 & demo_race_a_p___16 != 1 & demo_race_a_p___17 != 1 & demo_race_a_p___18 != 1 & demo_race_a_p___19 != 1 & demo_race_a_p___20 != 1 & demo_race_a_p___21 != 1 & demo_race_a_p___22 != 1 & demo_race_a_p___23 != 1 & demo_race_a_p___24 != 1 & demo_race_a_p___25 != 1) & demo_ethn_v2 == 1)
+
 
 #Asian
 demographics_baseline %>% 
@@ -463,7 +490,7 @@ demographics_baseline %>%
 #If the caregiver chose Native Hawaiian, Guamanian, or Samoan, Other Race, or refused to choose a racial category, the youth was placed in the “additional” race group as there were too few youth in each of these categories individually for separate analysis.
 
 demographics_baseline %>% 
-  filter(demo_race_a_p___10 != 1 & demo_race_a_p___11 == 1 & demo_race_a_p___12 != 1 & demo_race_a_p___13 != 1 & (demo_race_a_p___14 == 1 | demo_race_a_p___15 == 1 | demo_race_a_p___16 == 1 | demo_race_a_p___17 == 1 | demo_race_a_p___25 == 1) & demo_race_a_p___18 != 1 & demo_race_a_p___19 != 1 & demo_race_a_p___20 != 1 & demo_race_a_p___21 != 1 & demo_race_a_p___22 != 1 & demo_race_a_p___23 != 1 & demo_race_a_p___24 != 1)
+  filter(demo_race_a_p___10 != 1 & demo_race_a_p___11 != 1 & demo_race_a_p___12 != 1 & demo_race_a_p___13 != 1 & (demo_race_a_p___14 == 1 | demo_race_a_p___15 == 1 | demo_race_a_p___16 == 1 | demo_race_a_p___17 == 1 | demo_race_a_p___25 == 1) & demo_race_a_p___18 != 1 & demo_race_a_p___19 != 1 & demo_race_a_p___20 != 1 & demo_race_a_p___21 != 1 & demo_race_a_p___22 != 1 & demo_race_a_p___23 != 1 & demo_race_a_p___24 != 1)
 
 
 
@@ -650,16 +677,26 @@ followup_cognition_crystal_2 <- lm(corrected_gap ~ nihtbx_cryst_agecorrected, da
 
 ## Model Summaries
 ```{r}
+# Youth-report puberty
 summary(followup_puberty_y_mean_1)
 summary(followup_puberty_y_mean_2)
 
-
+# Parent-report puberty
 summary(followup_puberty_p_mean_1)
 summary(followup_puberty_p_mean_2)
 
 summary(followup_cognition_crystal_1)
 summary(followup_cognition_crystal_2)
 ```
+
+
+Descriptive Stats
+```{r}
+describe(sample_1_followup_months)
+
+describe(sample_2_followup_months)
+```
+
 
 # Density Plots for Follow-Up
 ```{r}
@@ -1115,10 +1152,19 @@ summary(abcd_baseline_puberty_y_mean)
 
 summary(abcd_baseline_puberty_p_mean)
 
-summary(abcd_baseline_cognition)
+#summary(abcd_baseline_cognition)
 
 summary(abcd_baseline_cognition_standard)
 ```
+
+
+Descriptive Stats
+```{r}
+describe(abcd_baseline_months)
+```
+
+
+
 Model Plots
 ```{r}
 #Cognition
