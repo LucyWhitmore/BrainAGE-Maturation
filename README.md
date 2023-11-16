@@ -8,7 +8,7 @@ If you're interested in using the model to make predictions on your own data, fo
 
 1. Download the model file: UpdatedModels/fit_workflow_combat.rds for baseline model, or UpdatedModels/fit_workflow_combat_followup.rds for follow-up model.
 
-3. Prepare your own data. To make predictions, you should have a file with a column for age, and then columns for the brain features listed in feature_list.txt. Make sure your column names match up with the feature list. If you need to convert the names of your data columns, there are a few examples contained in the files within this repository. For converting from ABCD output, use the code in DataSetup.Rmd [lines 73-287]. For converting from Freesurfer output, use [code coming soon].
+3. Prepare your own data. To make predictions, you should have a file with a column for age, and then columns for the brain features listed in feature_list.txt. Make sure your column names match up with the feature list. If you need to convert the names of your data columns, there are a few examples contained in the files within this repository. For converting from ABCD output, use the code in DataSetup.Rmd [lines 73-287]. For converting from Freesurfer output, use FreeSurferSetupBrainAGE.Rmd as a template (in progress, may be a few remaining bugs).
 
 4. Once you've confirmed your data is in the correct format, run ABCDModel.Rmd (for baseline) or ABCDModelModelTraining_Followup.Rmd (lines 221-304, for follow-up) to get new predictions. 
 

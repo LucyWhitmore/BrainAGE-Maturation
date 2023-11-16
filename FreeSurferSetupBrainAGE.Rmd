@@ -1,0 +1,232 @@
+---
+title: "NavNetworks BrainAGE"
+author: "Lucy Whitmore"
+date: "4/3/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+packages <-  c("tidyverse",
+               "nlme", "lme4",
+               "ggpubr", "lubridate", "tidymodels")
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+lapply(packages, library, character.only = TRUE)
+```
+
+Import & combine data
+```{r}
+left_area <- rio::import("left_area.txt")  %>% 
+  rename(subid = lh.aparc.area)
+
+right_area <- rio::import("right_area.txt")   %>% 
+  rename(subid = rh.aparc.area)
+
+right_volume <- rio::import("right_volume.txt")   %>% 
+  rename(subid = rh.aparc.volume)
+
+left_volume<- rio::import("left_volume.txt")   %>% 
+  rename(subid = lh.aparc.volume)
+
+aseg_volume <- rio::import("aseg_volume.txt")  %>% 
+  rename(subid = "Measure:volume")
+
+```
+
+rename columns
+```{r}
+#aseg_volume just needs _Vol added
+#regex mutate column names
+#add a column for aseg vs aparc and grep based on that
+
+# replace cortex with cort
+# ventricle with vent
+
+left_volume <- left_volume %>% rename_with(~str_replace(., "_volume", "_GrayVol"))
+
+right_volume <- right_volume %>% rename_with(~str_replace(., "_volume", "_GrayVol"))
+
+names(aseg_volume)[-1] <- names(aseg_volume)[-1] %>% 
+  paste0("_Vol")
+
+names(aseg_volume)[-1] <- paste0("FS_", names(aseg_volume)[-1])
+```
+
+
+```{r}
+brain_area <- left_join(left_area, right_area, by = "subid")
+
+brain_volume <- left_join(left_volume, right_volume, by = "subid")
+
+brain_aparc <- left_join(brain_area, brain_volume, by = "subid")
+
+brain <- left_join(brain_aparc, aseg_volume, by ="subid")
+```
+
+```{r}
+
+brain_names <- brain 
+
+brain_names <- brain_names %>% 
+  rename_with(~str_replace_all(., c("lh_" = "FS_L_", "rh_" = "FS_R_", "FS_Left-" = "FS_L_", "FS_Right-" = "FS_R_", "FS_lh" = "FS_L_", "FS_rh" = "FS_R_", "Cortex" = "Cort",
+                    "Ventricle" = "Vent", "-" = "_")))
+
+colnames(brain_names) <- gsub("(?<=^|_)([a-z])", "\\U\\1", colnames(brain_names), perl=T)
+
+```
+
+add extra columns to brain, pivot and cbind to pivoted training set
+```{r}
+#brain_copy <- brain
+training_copy <- training_sample_baseline
+namevector <- names(brain[177:211])
+training_copy[,namevector] <- NA
+
+row_num <- seq(1,211)
+#feature_df <- as.data.frame(row_num, names(brain_copy), names(training_sample_baseline))
+
+feature_df <- as.data.frame(cbind(row_num, names(brain), names(training_copy))) %>% 
+  select(V2, V3) %>% 
+  rename(nav_names = V2,
+         model_names = V3)
+
+#make values from 140 to end in nav NAs
+feature_df$model_names[177:211] <- NA
+```
+
+regex test
+- clean1 and 2 used because subsequent gsub statements will override the others, nesting didn't work. 
+```{r}
+
+#change lh_ to FS_L_, rh_ to FS_R_
+#group$group.no.e <- gsub("e", "", group$group)
+feature_df$nav_names_clean <- gsub("lh_", "FS_L_", feature_df$nav_names)
+feature_df$nav_names_clean <- gsub("rh_", "FS_R_", feature_df$nav_names_clean)
+
+#replace Left- with FS_L_
+feature_df$nav_names_clean <- gsub("FS_Left-", "FS_L_", feature_df$nav_names_clean)
+feature_df$nav_names_clean <- gsub("FS_Right-", "FS_R_", feature_df$nav_names_clean)
+
+
+# replace cortex with cort
+feature_df$nav_names_clean <- gsub("Cortex", "Cort", feature_df$nav_names_clean)
+# ventricle with vent
+feature_df$nav_names_clean <- gsub("Ventricle", "Vent", feature_df$nav_names_clean)
+# - with _
+feature_df$nav_names_clean <- gsub("-", "_", feature_df$nav_names_clean)
+
+#capitalize first letter after _
+feature_df$nav_names_clean <- gsub("(?<=^|_)([a-z])", "\\U\\1", feature_df$nav_names_clean, perl=TRUE)
+
+```
+
+find missing variables -old
+```{r}
+# Note: this is just one way to do this, and compares the new data to the training sample, which is not hosted publicaly. Comparing to feature_list.txt might be a workaround. 
+
+# get columns in analysis sample that aren't in brain
+hcp_diff <- as.data.frame(setdiff(names(analysis_sample_baseline), names(brain)))
+
+
+# get columns in analysis sample that aren't in brain
+nav_diff <- as.data.frame(setdiff(names(brain), names(analysis_sample_baseline)))
+
+
+max_length <- max(length(hcp_diff), length(nav_diff))
+
+#set length of each vector equal to max length
+length(hcp_diff) <- max_length                      
+length(nav_diff) <- max_length 
+
+#cbind the two vectors together
+cbind(hcp_diff, nav_diff)
+
+
+diff_df <- as.data.frame(c(setdiff(names(analysis_sample_baseline), names(brain)), setdiff(names(brain), names(analysis_sample_baseline))))
+```
+
+rename remaining columns
+```{r}
+brain_names <- brain_names %>% 
+rename(FS_LCort_GM_Vol = FS_L_CortVol_Vol,
+FS_RCort_GM_Vol = FS_R_CortVol_Vol,
+FS_TotCort_GM_Vol = FS_CortVol_Vol,   
+FS_L_LatVent_Vol = FS_L_Lateral_Vent_Vol,
+FS_L_InfLatVent_Vol = FS_L_Inf_Lat_Vent_Vol, 
+FS_L_Cerebellum_WM_Vol = FS_L_Cerebellum_White_Matter_Vol,
+FS_L_ThalamusProper_Vol = FS_L_Thalamus_Vol,
+FS_3rdVent_Vol = FS_3rd_Vent_Vol, 
+FS_4thVent_Vol = FS_4th_Vent_Vol,
+FS_BrainStem_Vol = FS_Brain_Stem_Vol,
+FS_L_Hippo_Vol = FS_L_Hippocampus_Vol,
+FS_L_AccumbensArea_Vol = FS_L_Accumbens_Area_Vol,
+FS_L_VentDC_Vol = FS_L_VentralDC_Vol,
+FS_R_LatVent_Vol = FS_R_Lateral_Vent_Vol,
+FS_R_InfLatVent_Vol = FS_R_Inf_Lat_Vent_Vol,
+FS_R_Cerebellum_WM_Vol = FS_R_Cerebellum_White_Matter_Vol,
+FS_R_ThalamusProper_Vol = FS_R_Thalamus_Vol,
+FS_R_Hippo_Vol = FS_R_Hippocampus_Vol,
+FS_R_AccumbensArea_Vol = FS_R_Accumbens_Area_Vol,
+FS_R_VentDC_Vol = FS_R_VentralDC_Vol,
+FS_CC_MidPosterior_Vol = FS_CC_Mid_Posterior_Vol,
+FS_CC_MidAnterior_Vol = FS_CC_Mid_Anterior_Vol,
+FS_InterCranial_Vol = ETIV.x.x,
+FS_SupraTentorial_Vol = FS_SupraTentorialVol_Vol,
+FS_SubCort_GM_Vol = FS_SubCortGrayVol_Vol)
+```
+
+
+remaining data features without corresponding model features:
+
+FS_L_WhiteSurfArea_Area
+BrainSegVolNotVent.x.x
+FS_R_WhiteSurfArea_Area
+BrainSegVolNotVent.y.x
+ETIV.y.x
+BrainSegVolNotVent.x.y
+ETIV.x.y
+BrainSegVolNotVent.y.y
+ETIV.y.y
+FS_L_vessel_Vol
+FS_L_choroid_plexus_Vol
+FS_R_vessel_Vol
+FS_R_choroid_plexus_Vol
+FS_5th_Vent_Vol
+FS_WM_hypointensities_Vol
+FS_L_WM_hypointensities_Vol
+FS_R_WM_hypointensities_Vol
+FS_Non_WM_hypointensities_Vol
+FS_L_non_WM_hypointensities_Vol
+FS_R_non_WM_hypointensities_Vol
+FS_Optic_Chiasm_Vol
+FS_BrainSegVol_Vol
+FS_BrainSegVolNotVent_Vol
+FS_LhCerebralWhiteMatterVol_Vol
+FS_RhCerebralWhiteMatterVol_Vol
+FS_CerebralWhiteMatterVol_Vol
+FS_TotalGrayVol_Vol
+FS_SupraTentorialVolNotVent_Vol
+FS_MaskVol_Vol
+FS_BrainSegVol_to_eTIV_Vol
+FS_MaskVol_to_eTIV_Vol
+FS_LhSurfaceHoles_Vol
+FS_RhSurfaceHoles_Vol
+FS_SurfaceHoles_Vol
+FS_EstimatedTotalIntraCranialVol_Vol
+
+cleaning
+```{r}
+#drop columns that aren't in model
+common_cols <- intersect(colnames(training_sample_baseline), colnames(brain_names))
+
+#test to make sure we don't have extras
+col_test <- training_sample_baseline %>%
+      select(!common_cols)
+
+brain_subset <- brain_names %>% 
+  select(Subid, common_cols)
+
+```
