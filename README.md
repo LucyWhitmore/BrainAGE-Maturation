@@ -16,4 +16,6 @@ If you're interested in using the model to make predictions on your own data, fo
 
 If you want to train your own model, you can modify or use the code from UpdatedModels/ABCDModelTraining.Rmd (h/t to Vlad Drobinin for the original model training code (linked in /DevelopmentalBrainAGE), which has been updated to use workflows).
 
+Additionally, some are some potential issues with predicting from the Drobinin et al., 2022 model used in the paper due to package deprecation/version issues. If you're interested in using that model, check out the DrobininModelPredictions.Rmd file, which contains some potentially helpful workarounds and instructions for predicting with that model!
+
 Finally, if you have any questions about the code or project, or encounter any bugs, please reach out to me at lwhitmor@uoregon.edu
